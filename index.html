@@ -25,6 +25,7 @@ body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!impor
   --paper:#E3E4DE; --surface:#F0F0EB; --ink:#1B1D23; --muted:#5B606C; --rule:#C6C8C0;
   --accent:#2C4784; --accent-soft:#D5DBEA; --seal:#B3362A; --good:#2E7650; --warn:#A8701A;
   --wood:#D8AC67; --wood2:#C8954F; --grid:#3B2914;
+  --frame:#6E4529; --frame2:#8A5A37; --tray:#56361F; --hole:#D6CFBF; /* 중력 오목 stand: lacquered wood with light seen through the holes, same in both themes */
   --display:"Song Myung","Nanum Myeongjo",serif;
   --body:"Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
@@ -98,8 +99,7 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4vw,40px);mar
 /* 중력 오목 */
 .gravity{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,420px);gap:22px;align-items:start}
 @media (max-width:720px){.gravity{grid-template-columns:minmax(0,1fr)}}
-#gBoard{width:100%;max-width:560px;aspect-ratio:450/470;display:block;touch-action:manipulation;user-select:none;cursor:pointer;border-radius:6px;
-  box-shadow:0 1px 0 rgba(0,0,0,.08),0 10px 30px -12px rgba(40,25,5,.45)}
+#gBoard{width:100%;max-width:520px;aspect-ratio:520/590;display:block;touch-action:manipulation;user-select:none;cursor:pointer}
 .gmobile{display:none}
 @media (max-width:720px){.gmobile{display:flex}}
 /* setup shows alone; phones get controls under the board */
@@ -355,7 +355,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         <span class="pill" id="gStatus"><span class="dot" id="gDot"></span><span id="gStatusText">당신 차례</span></span>
         <span class="movecount" id="gCount"></span>
       </div>
-      <svg id="gBoard" viewBox="0 0 450 470" role="img" aria-label="중력 오목 9×9 판. 열을 누르면 돌이 맨 아래 빈칸으로 떨어집니다"></svg>
+      <svg id="gBoard" viewBox="0 0 520 590" role="img" aria-label="세워 둔 중력 오목판, 구멍 9×9. 열을 누르면 칩이 맨 아래 빈 구멍으로 떨어집니다"></svg>
       <p class="mnote" id="gNote"></p>
       <div class="btns gmobile"><button class="btn" id="gUndoM">무르기</button><button class="btn" id="gHintM">힌트</button><button class="btn" id="gNewM">새 대국</button></div>
       <div class="legend">
@@ -1822,29 +1822,50 @@ function gUndo(){if(GV.thinking||!GV.hist.length) return;
 function gHint(){if(GV.over||GV.thinking) return; GV.hint=gc(gChoose(GV.b.slice(),GV.human,'hard'));
   gSay('힌트',`${GL(GV.hint)}을 추천해요.`,'tip'); gRender();}
 const reduceMotion=(()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){return false;}})();
+/* The board is drawn as an upright stand: a lacquered wooden frame with 9×9 round holes,
+   a rail of drop slots on top, side posts and a tray at the bottom. Chips are flat coins. */
+const GS=46, GFX=39, GFY=70, GFW=442, GFH=442, GVW=520, GVH=590;
+const gx=c=>GFX+37+c*GS, gy=r=>GFY+37+r*GS;
+function gChip(x,y,c,extra='',opacity=1){
+  const fill=c===1?'#1c1d22':'#fdfcf7', ring=c===1?'#4a4c55':'#b9b4a5', edge=c===1?'#000':'#6f6a5d';
+  return `<g opacity="${opacity}"${extra}><circle cx="${x}" cy="${y}" r="17" fill="${fill}" stroke="${edge}" stroke-width="1.8"/><circle cx="${x}" cy="${y}" r="11.5" fill="none" stroke="${ring}" stroke-width="2"/></g>`;
+}
 function gRender(){
-  const S=50,OX=25,OY=45,px=c=>OX+c*S,py=r=>OY+r*S,b=GV.b,turnMine=!GV.over&&!GV.thinking&&(GV.hist.length%2===0?1:2)===GV.human;
-  let h=`<rect width="450" height="470" fill="var(--wood)"/>`;
-  for(let c=0;c<GW;c++) h+=`<line x1="${px(c)}" y1="${py(0)}" x2="${px(c)}" y2="${py(GH-1)}" stroke="var(--grid)" stroke-width="${c===0||c===GW-1?1.6:0.9}"/>`;
-  for(let r=0;r<GH;r++) h+=`<line x1="${px(0)}" y1="${py(r)}" x2="${px(GW-1)}" y2="${py(r)}" stroke="var(--grid)" stroke-width="${r===0||r===GH-1?1.6:0.9}"/>`;
-  // column guidance above the board for my turn
+  const b=GV.b,turnMine=!GV.over&&!GV.thinking&&(GV.hist.length%2===0?1:2)===GV.human;
+  // stand: tray, side posts, frame, top rail with one slot per column
+  let h=`<rect x="10" y="${GFY+GFH-22}" width="500" height="80" rx="26" fill="var(--tray)"/>
+    <rect x="44" y="${GFY+GFH+10}" width="432" height="30" rx="10" fill="rgba(0,0,0,.28)"/>`;
+  for(let k=0;k<4;k++) h+=gChip(70+k*22,GFY+GFH+25,1,'',.9)+gChip(450-k*22,GFY+GFH+25,2,'',.9);
+  h+=`<rect x="${GFX-16}" y="${GFY+140}" width="18" height="${GFH-120}" rx="6" fill="var(--tray)"/>
+    <rect x="${GFX+GFW-2}" y="${GFY+140}" width="18" height="${GFH-120}" rx="6" fill="var(--tray)"/>
+    <rect x="${GFX}" y="${GFY}" width="${GFW}" height="${GFH}" rx="14" fill="var(--frame)"/>
+    <rect x="${GFX+6}" y="${GFY+6}" width="${GFW-12}" height="${GFH-12}" rx="10" fill="none" stroke="var(--frame2)" stroke-width="2"/>
+    <rect x="${GFX-6}" y="${GFY-14}" width="${GFW+12}" height="22" rx="8" fill="var(--frame2)"/>`;
+  for(let c=0;c<GW;c++) h+=`<rect x="${gx(c)-16}" y="${GFY-7}" width="32" height="6" rx="3" fill="rgba(0,0,0,.55)"/>`;
+  // holes show what is behind the stand
+  for(let r=0;r<GH;r++) for(let c=0;c<GW;c++)
+    h+=`<circle cx="${gx(c)}" cy="${gy(r)}" r="18.5" fill="var(--hole)"/><circle cx="${gx(c)}" cy="${gy(r)}" r="17" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="3"/>`;
+  // column guidance above the rail for my turn, and waiting threats inside empty holes
   if(turnMine){const k=gCoach(b,GV.human);
-    k.cols.forEach(x=>{if(!x) return; const cx=px(x.c);
-      if(x.win) h+=`<path d="M${cx-8} 10 L${cx+8} 10 L${cx} 22 Z" fill="var(--good)"/>`;
-      else if(x.block) h+=`<path d="M${cx-8} 10 L${cx+8} 10 L${cx} 22 Z" fill="var(--seal)"/>`;
-      else if(x.danger) h+=`<path d="M${cx-6} 10 L${cx+6} 22 M${cx+6} 10 L${cx-6} 22" stroke="var(--warn)" stroke-width="3" stroke-linecap="round"/>`;});
-    for(const i of k.myWait) h+=`<circle cx="${px(gc(i))}" cy="${py(gr(i))}" r="9" fill="none" stroke="var(--good)" stroke-width="2.5"/>`;
-    for(const i of k.opWait) h+=`<circle cx="${px(gc(i))}" cy="${py(gr(i))}" r="9" fill="none" stroke="var(--seal)" stroke-width="2.5"/>`;}
-  if(GV.hint!=null) h+=`<rect x="${px(GV.hint)-22}" y="${OY-22}" width="44" height="${(GH-1)*S+44}" rx="8" fill="none" stroke="var(--accent)" stroke-width="3" stroke-dasharray="6 5"/>`;
-  for(let i=0;i<GN;i++) if(b[i]){const x=px(gc(i)),y=py(gr(i)),fill=b[i]===1?'#1c1d22':'#f1f0e9';
-    const anim=i===GV.anim&&!reduceMotion?`<animate attributeName="cy" from="${OY-30}" to="${y}" dur="0.28s" fill="freeze"/>`:'';
-    h+=`<circle cx="${x}" cy="${y}" r="21" fill="${fill}" stroke="${b[i]===1?'#000':'#bbb'}" stroke-width="1">${anim}</circle>`;}
+    k.cols.forEach(x=>{if(!x) return; const cx=gx(x.c);
+      if(x.win) h+=`<path d="M${cx-8} 8 L${cx+8} 8 L${cx} 20 Z" fill="var(--good)"/>`;
+      else if(x.block) h+=`<path d="M${cx-8} 8 L${cx+8} 8 L${cx} 20 Z" fill="var(--seal)"/>`;
+      else if(x.danger) h+=`<path d="M${cx-6} 8 L${cx+6} 20 M${cx+6} 8 L${cx-6} 20" stroke="var(--warn)" stroke-width="3" stroke-linecap="round"/>`;});
+    for(const i of k.myWait) h+=`<circle cx="${gx(gc(i))}" cy="${gy(gr(i))}" r="9" fill="none" stroke="var(--good)" stroke-width="2.5"/>`;
+    for(const i of k.opWait) h+=`<circle cx="${gx(gc(i))}" cy="${gy(gr(i))}" r="9" fill="none" stroke="var(--seal)" stroke-width="2.5"/>`;}
+  if(GV.hint!=null) h+=`<rect x="${gx(GV.hint)-23}" y="${GFY+8}" width="46" height="${GFH-16}" rx="12" fill="none" stroke="var(--accent)" stroke-width="3" stroke-dasharray="6 5"/>`;
+  // chips; the newest one drops from the slot into its hole
+  for(let i=0;i<GN;i++) if(b[i]){const x=gx(gc(i)),y=gy(gr(i));
+    if(i===GV.anim&&!reduceMotion){const d=(0.12+0.035*gr(i)).toFixed(2);
+      h+=`<g>${gChip(x,0,b[i])}<animateTransform attributeName="transform" type="translate" from="0 ${GFY-28}" to="0 ${y}" dur="${d}s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".55 0 1 .45"/></g>`;}
+    else h+=gChip(x,y,b[i]);}
   GV.anim=-1;
   const last=GV.hist.length?GV.hist[GV.hist.length-1].i:-1;
-  if(last>=0) h+=`<circle cx="${px(gc(last))}" cy="${py(gr(last))}" r="5" fill="var(--seal)"/>`;
-  if(GV.win){const a=GV.win[0],z=GV.win[GV.win.length-1]; h+=`<line x1="${px(gc(a))}" y1="${py(gr(a))}" x2="${px(gc(z))}" y2="${py(gr(z))}" stroke="var(--seal)" stroke-width="6" stroke-linecap="round" opacity=".85"/>`;}
-  // where my stone would land in the hovered column
-  if(turnMine&&GV.hover>=0){const i=gDrop(b,GV.hover); if(i>=0) h+=`<circle cx="${px(gc(i))}" cy="${py(gr(i))}" r="20" fill="${GV.human===1?'#1c1d22':'#f1f0e9'}" opacity=".4"/>`;}
+  if(last>=0) h+=`<circle cx="${gx(gc(last))}" cy="${gy(gr(last))}" r="4.5" fill="var(--seal)"/>`;
+  if(GV.win){const a=GV.win[0],z=GV.win[GV.win.length-1]; h+=`<line x1="${gx(gc(a))}" y1="${gy(gr(a))}" x2="${gx(gc(z))}" y2="${gy(gr(z))}" stroke="var(--seal)" stroke-width="6" stroke-linecap="round" opacity=".85"/>`;}
+  // my chip held over the hovered column's slot, and a faint mark where it would land
+  if(turnMine&&GV.hover>=0){const i=gDrop(b,GV.hover);
+    if(i>=0) h+=gChip(gx(GV.hover),GFY-30,GV.human)+`<circle cx="${gx(gc(i))}" cy="${gy(gr(i))}" r="15" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="4 4"/>`;}
   $('#gBoard').innerHTML=h;
   // status, count, coach
   const st=$('#gStatus'),tx=$('#gStatusText'); st.className='pill';
@@ -1859,7 +1880,7 @@ function gRender(){
   $('#gLevel').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===GV.level));
   $('#gSide').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',+x.dataset.v===GV.human));
 }
-const gColFromEvent=e=>{const r=$('#gBoard').getBoundingClientRect(),x=(e.clientX-r.left)*450/r.width; const c=Math.round((x-25)/50); return c>=0&&c<GW?c:-1;};
+const gColFromEvent=e=>{const r=$('#gBoard').getBoundingClientRect(),x=(e.clientX-r.left)*GVW/r.width; const c=Math.round((x-gx(0))/GS); return c>=0&&c<GW?c:-1;};
 $('#gBoard').addEventListener('click',e=>{const c=gColFromEvent(e); if(c>=0) gPlay(c);});
 $('#gBoard').addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return; const c=gColFromEvent(e); if(c!==GV.hover){GV.hover=c;gRender();}});
 $('#gBoard').addEventListener('pointerleave',()=>{GV.hover=-1;gRender();});
