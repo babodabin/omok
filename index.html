@@ -25,7 +25,7 @@ body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!impor
   --paper:#E3E4DE; --surface:#F0F0EB; --ink:#1B1D23; --muted:#5B606C; --rule:#C6C8C0;
   --accent:#2C4784; --accent-soft:#D5DBEA; --seal:#B3362A; --good:#2E7650; --warn:#A8701A;
   --wood:#D8AC67; --wood2:#C8954F; --grid:#3B2914;
-  --frame:#6E4529; --frame2:#8A5A37; --tray:#56361F; --hole:#D6CFBF; /* 중력 오목 stand: lacquered wood with light seen through the holes, same in both themes */
+  --frame:#6E4529; --frame2:#8A5A37; --tray:#56361F; --hole:#6F8E8C; /* 중력 오목 stand: lacquered wood; a mid-tone backing so black and white chips both stand out, same in both themes */
   --display:"Song Myung","Nanum Myeongjo",serif;
   --body:"Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
@@ -99,7 +99,9 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4vw,40px);mar
 /* 중력 오목 */
 .gravity{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,420px);gap:22px;align-items:start}
 @media (max-width:720px){.gravity{grid-template-columns:minmax(0,1fr)}}
-#gBoard{width:100%;max-width:520px;aspect-ratio:520/590;display:block;touch-action:manipulation;user-select:none;cursor:pointer}
+#gBoard{width:100%;max-width:520px;aspect-ratio:520/590;display:block;touch-action:pan-y;user-select:none;cursor:grab}
+#gBoard:focus{outline:none}
+#gBoard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .gmobile{display:none}
 @media (max-width:720px){.gmobile{display:flex}}
 /* setup shows alone; phones get controls under the board */
@@ -241,7 +243,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         <button class="rulecard" data-rule="kr33"><b>한국식</b><span>흑·백 모두 정확히 다섯 개로 승리. 여섯 개 이상은 승리 아님. 삼삼은 흑·백 모두 금지.</span></button>
         <button class="rulecard" data-rule="free"><b>자유 오목</b><span>금지 없음. 흑·백 모두 다섯 개 이상이면 승리.</span></button>
         <button class="rulecard" data-rule="renju"><b>렌주</b><span>국제 공식 규칙. 흑만 삼삼·사사·장목 금지, 백은 제한 없음.</span></button>
-        <button class="rulecard gravcard" id="homeGravity"><b>중력 오목 <small style="font-size:12px;color:var(--warn)">재미용</small></b><span>9×9 판. 열을 고르면 돌이 맨 아래로 떨어져요. 다섯 개를 먼저 이으면 승리.</span></button>
+        <button class="rulecard gravcard" id="homeGravity"><b>중력 오목 <small style="font-size:12px;color:var(--warn)">재미용</small></b><span>세워 둔 9×9 판. 칩을 홈 위에 올려놓으면 아래로 떨어져요. 다섯 개를 먼저 이으면 승리.</span></button>
       </div>
       <button class="linkbtn" id="homeResume" hidden>진행 중인 대국 이어서 두기</button>
     </div>
@@ -355,7 +357,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         <span class="pill" id="gStatus"><span class="dot" id="gDot"></span><span id="gStatusText">당신 차례</span></span>
         <span class="movecount" id="gCount"></span>
       </div>
-      <svg id="gBoard" viewBox="0 0 520 590" role="img" aria-label="세워 둔 중력 오목판, 구멍 9×9. 열을 누르면 칩이 맨 아래 빈 구멍으로 떨어집니다"></svg>
+      <svg id="gBoard" viewBox="0 0 520 590" role="img" tabindex="0" aria-label="세워 둔 중력 오목판, 구멍 9×9. 칩을 열 위에 올려놓으면 맨 아래 빈 구멍으로 떨어집니다. 좌우 화살표로 열을 고르고 엔터로 놓을 수 있어요"></svg>
       <p class="mnote" id="gNote"></p>
       <div class="btns gmobile"><button class="btn" id="gUndoM">무르기</button><button class="btn" id="gHintM">힌트</button><button class="btn" id="gNewM">새 대국</button></div>
       <div class="legend">
@@ -368,7 +370,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <section class="panel">
       <div class="tabbody">
         <h2 class="setup-h">중력 오목 <small style="font-size:14px;color:var(--warn)">재미용</small></h2>
-        <p class="sub" style="margin:0">판 위에서 열을 고르면 돌이 그 열의 맨 아래 빈칸으로 떨어져요. 가로·세로·대각선으로 다섯 개를 먼저 이으면 승리. 공식 규칙이 아닌 재미용 변형이라 복기와 전적에는 남지 않아요.</p>
+        <p class="sub" style="margin:0">칩을 눌러 원하는 열의 홈 위로 옮긴 뒤 놓으면 판 뒤로 떨어져 맨 아래 구멍에 쌓여요. 그냥 눌러도 그 열에 떨어져요. 가로·세로·대각선으로 다섯 개를 먼저 이으면 승리. 공식 규칙이 아닌 재미용 변형이라 복기와 전적에는 남지 않아요.</p>
         <div class="row2">
           <div><p class="label">AI 실력</p><div class="seg" id="gLevel"><button data-v="easy">입문</button><button data-v="normal">중수</button><button data-v="hard">고수</button></div></div>
           <div><p class="label">내 돌</p><div class="seg" id="gSide"><button data-v="1">흑 (선)</button><button data-v="2">백 (후)</button></div></div>
@@ -1731,7 +1733,7 @@ $('#homeCodex').onclick=()=>showMain('codex');
 /* ---------- 중력 오목: 9×9, stones drop to the lowest empty cell of the chosen column, five in a row wins ---------- */
 const GW=9,GH=9,GN=GW*GH,gi=(c,r)=>r*GW+c,gc=i=>i%GW,gr=i=>(i/GW)|0;
 const GV={b:new Array(GN).fill(0),hist:[],over:null,win:null,thinking:false,human:store.get('gHuman',1),level:store.get('gLevel','normal'),
-  feed:[],hint:null,anim:-1,hover:-1};
+  feed:[],hint:null,fall:null,gen:0,hover:-1};
 // every run of five cells on the board, used for both win checks and the AI's evaluation
 const GWINS=(()=>{const out=[];for(let r=0;r<GH;r++)for(let c=0;c<GW;c++)for(const [dc,dr] of [[1,0],[0,1],[1,1],[1,-1]]){
   const w=[];for(let k=0;k<5;k++){const x=c+k*dc,y=r+k*dr;if(x<0||y<0||x>=GW||y>=GH)break;w.push(gi(x,y));} if(w.length===5) out.push(w);} return out;})();
@@ -1785,41 +1787,56 @@ function gCoach(b,me){
   return {cols,myWait:gThreatCells(b,me).filter(i=>!playable.has(i)),opWait:gThreatCells(b,op).filter(i=>!playable.has(i))};}
 const GL=c=>'ABCDEFGHI'[c]+'열';
 function gSay(who,html,tone=''){GV.feed.unshift({who,html,tone,n:GV.hist.length});GV.feed=GV.feed.slice(0,30);}
-function gNew(){GV.b=new Array(GN).fill(0);GV.hist=[];GV.over=null;GV.win=null;GV.thinking=false;GV.feed=[];GV.hint=null;GV.anim=-1;
-  gSay('코치','열을 눌러 돌을 떨어뜨리세요. 판 위쪽 표시가 이길 열, 막을 열, 피할 열을 알려줘요.','tip');
+function gNew(){GV.gen++;GV.fall=null;GV.b=new Array(GN).fill(0);GV.hist=[];GV.over=null;GV.win=null;GV.thinking=false;GV.feed=[];GV.hint=null;
+  gSay('코치','칩을 원하는 열의 홈 위에 올려놓으면 판 뒤로 떨어져요. 홈 위 표시가 이길 열, 막을 열, 피할 열을 알려줘요.','tip');
   if(GV.human===2) gAI(); gRender();}
-function gPlace(i,c){GV.b[i]=c;GV.hist.push({i,c});GV.anim=i;GV.hint=null;const w=gLine(GV.b,i);
-  if(w){GV.over=c;GV.win=w;} else if(GV.hist.length===GN) GV.over='draw';}
+// a chip falls behind the frame under gravity and bounces a little; the move only counts once it has landed
+function gFall(i,c,done){
+  if(reduceMotion){done();return;}
+  const gen=GV.gen,f={i,c,x:gx(gc(i)),y:GFY-30,v:0,target:gy(gr(i)),bounces:0};
+  GV.fall=f; gRender();
+  let last=performance.now();
+  const step=now=>{
+    if(GV.gen!==gen||GV.fall!==f) return;
+    const dt=Math.min(.033,(now-last)/1000); last=now;
+    f.v+=2600*dt; f.y+=f.v*dt;
+    if(f.y>=f.target){f.y=f.target;
+      if(f.bounces<2&&f.v>140){f.v=-f.v*.28;f.bounces++;}
+      else{GV.fall=null;done();return;}}
+    const el=$('#gFalling'); if(el) el.setAttribute('transform',`translate(0 ${f.y})`);
+    requestAnimationFrame(step);};
+  requestAnimationFrame(step);}
+function gPlace(i,c,done){GV.b[i]=c;GV.hist.push({i,c});GV.hint=null;
+  gFall(i,c,()=>{const w=gLine(GV.b,i); if(w){GV.over=c;GV.win=w;} else if(GV.hist.length===GN) GV.over='draw'; done(); gRender();});}
 function gPlay(col){
-  if(GV.over||GV.thinking||(GV.hist.length%2===0?1:2)!==GV.human) return;
+  if(GV.over||GV.thinking||GV.fall||(GV.hist.length%2===0?1:2)!==GV.human) return;
   const i=gDrop(GV.b,col); if(i<0) return;
   const before=gCoach(GV.b,GV.human), info=before.cols[col];
-  gPlace(i,GV.human);
   const winCol=before.cols.find(x=>x&&x.win), blockCol=before.cols.find(x=>x&&x.block);
-  if(GV.over===GV.human) gSay('결과','<b>승리!</b> 다섯 개를 이었어요.','good');
-  else if(winCol&&!info.win) gSay('나',`${GL(winCol.c)}에 두면 바로 이길 수 있었어요.`,'bad');
-  else if(blockCol&&col!==blockCol.c) gSay('나',`AI가 ${GL(blockCol.c)}에 두면 이겨요. 그 열을 막았어야 해요.`,'bad');
-  else if(info.danger) gSay('나',`${GL(col)}에 두어서 바로 위 칸을 AI에게 내줬어요. AI가 그 위에 두면 이겨요.`,'bad');
-  else if(info.block) gSay('나',`좋은 막기. AI가 ${GL(col)}에 두면 이기는 자리였어요.`,'good');
-  gRender(); if(GV.over) return; gAI();}
+  gPlace(i,GV.human,()=>{
+    if(GV.over===GV.human) gSay('결과','<b>승리!</b> 다섯 개를 이었어요.','good');
+    else if(winCol&&!info.win) gSay('나',`${GL(winCol.c)}에 두면 바로 이길 수 있었어요.`,'bad');
+    else if(blockCol&&col!==blockCol.c) gSay('나',`AI가 ${GL(blockCol.c)}에 두면 이겨요. 그 열을 막았어야 해요.`,'bad');
+    else if(info.danger) gSay('나',`${GL(col)}에 두어서 바로 위 칸을 AI에게 내줬어요. AI가 그 위에 두면 이겨요.`,'bad');
+    else if(info.block) gSay('나',`좋은 막기. AI가 ${GL(col)}에 두면 이기는 자리였어요.`,'good');
+    if(!GV.over) gAI();});}
 function gAI(){
-  GV.thinking=true; gRender();
-  setTimeout(()=>{const ai=3-GV.human,i=gChoose(GV.b.slice(),ai,GV.level);
-    const pre=gCoach(GV.b,ai).cols[gc(i)];
-    gPlace(i,ai); GV.thinking=false;
-    if(GV.over===ai) gSay('결과','<b>패배.</b> 무르기로 되돌려 어디서 막았어야 했는지 보세요.','bad');
-    else if(GV.over==='draw') gSay('결과','판이 가득 찼어요. 무승부.','');
-    else{const k=gCoach(GV.b,GV.human);
-      const must=k.cols.filter(x=>x&&x.block), dangers=k.cols.filter(x=>x&&x.danger&&!x.win);
-      if(must.length) gSay('AI',`AI가 ${GL(gc(i))}에 두었어요. <b>${must.map(x=>GL(x.c)).join(', ')}</b>을 막지 않으면 다음 수에 AI가 이겨요.`,'warn');
-      else if(dangers.length) gSay('AI',`${dangers.map(x=>GL(x.c)).join(', ')}에 두면 바로 위 칸을 AI에게 내줘요. 피하세요.`,'warn');
-      if(pre&&pre.block) gSay('AI',`AI가 ${GL(gc(i))}에서 내 승리 자리를 막았어요.`,'');}
-    gRender();},GV.level==='hard'?60:300);}
-function gUndo(){if(GV.thinking||!GV.hist.length) return;
+  const gen=GV.gen; GV.thinking=true; gRender();
+  setTimeout(()=>{ if(GV.gen!==gen) return;
+    const ai=3-GV.human,i=gChoose(GV.b.slice(),ai,GV.level),pre=gCoach(GV.b,ai).cols[gc(i)];
+    gPlace(i,ai,()=>{GV.thinking=false;
+      if(GV.over===ai) gSay('결과','<b>패배.</b> 무르기로 되돌려 어디서 막았어야 했는지 보세요.','bad');
+      else if(GV.over==='draw') gSay('결과','판이 가득 찼어요. 무승부.','');
+      else{const k=gCoach(GV.b,GV.human);
+        const must=k.cols.filter(x=>x&&x.block), dangers=k.cols.filter(x=>x&&x.danger&&!x.win);
+        if(must.length) gSay('AI',`AI가 ${GL(gc(i))}에 두었어요. <b>${must.map(x=>GL(x.c)).join(', ')}</b>을 막지 않으면 다음 수에 AI가 이겨요.`,'warn');
+        else if(dangers.length) gSay('AI',`${dangers.map(x=>GL(x.c)).join(', ')}에 두면 바로 위 칸을 AI에게 내줘요. 피하세요.`,'warn');
+        if(pre&&pre.block) gSay('AI',`AI가 ${GL(gc(i))}에서 내 승리 자리를 막았어요.`,'');}});},GV.level==='hard'?60:300);}
+function gUndo(){if(GV.thinking||GV.fall||!GV.hist.length) return;
   do{const h=GV.hist.pop();GV.b[h.i]=0;}while(GV.hist.length&&(GV.hist.length%2===0?1:2)!==GV.human);
   if(!GV.hist.length&&GV.human===2){GV.over=null;GV.win=null;gAI();return;}
-  GV.over=null;GV.win=null;GV.hint=null;GV.anim=-1;gSay('코치','한 수 물렸어요.','tip');gRender();}
-function gHint(){if(GV.over||GV.thinking) return; GV.hint=gc(gChoose(GV.b.slice(),GV.human,'hard'));
+  GV.over=null;GV.win=null;GV.hint=null;gSay('코치','한 수 물렸어요.','tip');gRender();}
+function gHint(){if(GV.over||GV.thinking||GV.fall) return; GV.hint=gc(gChoose(GV.b.slice(),GV.human,'hard'));
   gSay('힌트',`${GL(GV.hint)}을 추천해요.`,'tip'); gRender();}
 const reduceMotion=(()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){return false;}})();
 /* The board is drawn as an upright stand: a lacquered wooden frame with 9×9 round holes,
@@ -1831,41 +1848,41 @@ function gChip(x,y,c,extra='',opacity=1){
   return `<g opacity="${opacity}"${extra}><circle cx="${x}" cy="${y}" r="17" fill="${fill}" stroke="${edge}" stroke-width="1.8"/><circle cx="${x}" cy="${y}" r="11.5" fill="none" stroke="${ring}" stroke-width="2"/></g>`;
 }
 function gRender(){
-  const b=GV.b,turnMine=!GV.over&&!GV.thinking&&(GV.hist.length%2===0?1:2)===GV.human;
-  // stand: tray, side posts, frame, top rail with one slot per column
+  const b=GV.b,f=GV.fall,turnMine=!GV.over&&!GV.thinking&&!f&&(GV.hist.length%2===0?1:2)===GV.human;
+  // back to front: tray and posts, the backing seen through the holes, the chips, then the frame with real holes in it, so chips fall behind it
   let h=`<rect x="10" y="${GFY+GFH-22}" width="500" height="80" rx="26" fill="var(--tray)"/>
     <rect x="44" y="${GFY+GFH+10}" width="432" height="30" rx="10" fill="rgba(0,0,0,.28)"/>`;
   for(let k=0;k<4;k++) h+=gChip(70+k*22,GFY+GFH+25,1,'',.9)+gChip(450-k*22,GFY+GFH+25,2,'',.9);
   h+=`<rect x="${GFX-16}" y="${GFY+140}" width="18" height="${GFH-120}" rx="6" fill="var(--tray)"/>
     <rect x="${GFX+GFW-2}" y="${GFY+140}" width="18" height="${GFH-120}" rx="6" fill="var(--tray)"/>
-    <rect x="${GFX}" y="${GFY}" width="${GFW}" height="${GFH}" rx="14" fill="var(--frame)"/>
+    <rect x="${GFX+4}" y="${GFY+4}" width="${GFW-8}" height="${GFH-8}" rx="12" fill="var(--hole)"/>`;
+  for(let i=0;i<GN;i++) if(b[i]&&!(f&&f.i===i)) h+=gChip(gx(gc(i)),gy(gr(i)),b[i]);
+  if(f) h+=`<g id="gFalling" transform="translate(0 ${f.y})">${gChip(f.x,0,f.c)}</g>`;
+  // my chip resting on the slot of the column I am holding it over
+  const heldAt=turnMine&&GV.hover>=0?gDrop(b,GV.hover):-1;
+  if(heldAt>=0) h+=gChip(gx(GV.hover),GFY-30,GV.human);
+  const R=14,hx=GFX+R,holes=[];
+  for(let r=0;r<GH;r++) for(let c=0;c<GW;c++) holes.push(`M${gx(c)-18.5} ${gy(r)}a18.5 18.5 0 1 0 37 0a18.5 18.5 0 1 0 -37 0z`);
+  h+=`<path fill-rule="evenodd" fill="var(--frame)" d="M${hx} ${GFY}h${GFW-2*R}a${R} ${R} 0 0 1 ${R} ${R}v${GFH-2*R}a${R} ${R} 0 0 1 -${R} ${R}h-${GFW-2*R}a${R} ${R} 0 0 1 -${R} -${R}v-${GFH-2*R}a${R} ${R} 0 0 1 ${R} -${R}z${holes.join('')}"/>
     <rect x="${GFX+6}" y="${GFY+6}" width="${GFW-12}" height="${GFH-12}" rx="10" fill="none" stroke="var(--frame2)" stroke-width="2"/>
     <rect x="${GFX-6}" y="${GFY-14}" width="${GFW+12}" height="22" rx="8" fill="var(--frame2)"/>`;
   for(let c=0;c<GW;c++) h+=`<rect x="${gx(c)-16}" y="${GFY-7}" width="32" height="6" rx="3" fill="rgba(0,0,0,.55)"/>`;
-  // holes show what is behind the stand
-  for(let r=0;r<GH;r++) for(let c=0;c<GW;c++)
-    h+=`<circle cx="${gx(c)}" cy="${gy(r)}" r="18.5" fill="var(--hole)"/><circle cx="${gx(c)}" cy="${gy(r)}" r="17" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="3"/>`;
+  for(let r=0;r<GH;r++) for(let c=0;c<GW;c++) h+=`<circle cx="${gx(c)}" cy="${gy(r)}" r="19" fill="none" stroke="rgba(0,0,0,.4)" stroke-width="2.5"/>`;
   // column guidance above the rail for my turn, and waiting threats inside empty holes
+  const ring=(i,col)=>`<circle cx="${gx(gc(i))}" cy="${gy(gr(i))}" r="9" fill="none" stroke="#fff" stroke-width="5.5"/><circle cx="${gx(gc(i))}" cy="${gy(gr(i))}" r="9" fill="none" stroke="${col}" stroke-width="3"/>`;
   if(turnMine){const k=gCoach(b,GV.human);
     k.cols.forEach(x=>{if(!x) return; const cx=gx(x.c);
-      if(x.win) h+=`<path d="M${cx-8} 8 L${cx+8} 8 L${cx} 20 Z" fill="var(--good)"/>`;
-      else if(x.block) h+=`<path d="M${cx-8} 8 L${cx+8} 8 L${cx} 20 Z" fill="var(--seal)"/>`;
-      else if(x.danger) h+=`<path d="M${cx-6} 8 L${cx+6} 20 M${cx+6} 8 L${cx-6} 20" stroke="var(--warn)" stroke-width="3" stroke-linecap="round"/>`;});
-    for(const i of k.myWait) h+=`<circle cx="${gx(gc(i))}" cy="${gy(gr(i))}" r="9" fill="none" stroke="var(--good)" stroke-width="2.5"/>`;
-    for(const i of k.opWait) h+=`<circle cx="${gx(gc(i))}" cy="${gy(gr(i))}" r="9" fill="none" stroke="var(--seal)" stroke-width="2.5"/>`;}
-  if(GV.hint!=null) h+=`<rect x="${gx(GV.hint)-23}" y="${GFY+8}" width="46" height="${GFH-16}" rx="12" fill="none" stroke="var(--accent)" stroke-width="3" stroke-dasharray="6 5"/>`;
-  // chips; the newest one drops from the slot into its hole
-  for(let i=0;i<GN;i++) if(b[i]){const x=gx(gc(i)),y=gy(gr(i));
-    if(i===GV.anim&&!reduceMotion){const d=(0.12+0.035*gr(i)).toFixed(2);
-      h+=`<g>${gChip(x,0,b[i])}<animateTransform attributeName="transform" type="translate" from="0 ${GFY-28}" to="0 ${y}" dur="${d}s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".55 0 1 .45"/></g>`;}
-    else h+=gChip(x,y,b[i]);}
-  GV.anim=-1;
-  const last=GV.hist.length?GV.hist[GV.hist.length-1].i:-1;
-  if(last>=0) h+=`<circle cx="${gx(gc(last))}" cy="${gy(gr(last))}" r="4.5" fill="var(--seal)"/>`;
-  if(GV.win){const a=GV.win[0],z=GV.win[GV.win.length-1]; h+=`<line x1="${gx(gc(a))}" y1="${gy(gr(a))}" x2="${gx(gc(z))}" y2="${gy(gr(z))}" stroke="var(--seal)" stroke-width="6" stroke-linecap="round" opacity=".85"/>`;}
-  // my chip held over the hovered column's slot, and a faint mark where it would land
-  if(turnMine&&GV.hover>=0){const i=gDrop(b,GV.hover);
-    if(i>=0) h+=gChip(gx(GV.hover),GFY-30,GV.human)+`<circle cx="${gx(gc(i))}" cy="${gy(gr(i))}" r="15" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="4 4"/>`;}
+      if(x.win) h+=`<path d="M${cx-8} 6 L${cx+8} 6 L${cx} 18 Z" fill="var(--good)"/>`;
+      else if(x.block) h+=`<path d="M${cx-8} 6 L${cx+8} 6 L${cx} 18 Z" fill="var(--seal)"/>`;
+      else if(x.danger) h+=`<path d="M${cx-6} 6 L${cx+6} 18 M${cx+6} 6 L${cx-6} 18" stroke="var(--warn)" stroke-width="3" stroke-linecap="round"/>`;});
+    for(const i of k.myWait) h+=ring(i,'#1f8a55');
+    for(const i of k.opWait) h+=ring(i,'#c8321f');}
+  if(GV.hint!=null) h+=`<rect x="${gx(GV.hint)-23}" y="${GFY+8}" width="46" height="${GFH-16}" rx="12" fill="none" stroke="#ffe08a" stroke-width="3" stroke-dasharray="6 5"/>`;
+  const last=!f&&GV.hist.length?GV.hist[GV.hist.length-1].i:-1;
+  if(last>=0) h+=`<circle cx="${gx(gc(last))}" cy="${gy(gr(last))}" r="4.5" fill="#e0452f" stroke="#fff" stroke-width="1"/>`;
+  if(GV.win&&!f){const a=GV.win[0],z=GV.win[GV.win.length-1]; h+=`<line x1="${gx(gc(a))}" y1="${gy(gr(a))}" x2="${gx(gc(z))}" y2="${gy(gr(z))}" stroke="#e0452f" stroke-width="6" stroke-linecap="round" opacity=".9"/>`;}
+  // a faint mark where the held chip would land
+  if(heldAt>=0) h+=`<circle cx="${gx(gc(heldAt))}" cy="${gy(gr(heldAt))}" r="14" fill="none" stroke="#fff" stroke-width="2.5" stroke-dasharray="4 4"/>`;
   $('#gBoard').innerHTML=h;
   // status, count, coach
   const st=$('#gStatus'),tx=$('#gStatusText'); st.className='pill';
@@ -1881,9 +1898,20 @@ function gRender(){
   $('#gSide').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',+x.dataset.v===GV.human));
 }
 const gColFromEvent=e=>{const r=$('#gBoard').getBoundingClientRect(),x=(e.clientX-r.left)*GVW/r.width; const c=Math.round((x-gx(0))/GS); return c>=0&&c<GW?c:-1;};
-$('#gBoard').addEventListener('click',e=>{const c=gColFromEvent(e); if(c>=0) gPlay(c);});
-$('#gBoard').addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return; const c=gColFromEvent(e); if(c!==GV.hover){GV.hover=c;gRender();}});
-$('#gBoard').addEventListener('pointerleave',()=>{GV.hover=-1;gRender();});
+// pick up a chip: press to hold it over a slot, slide along the rail, let go to drop it (letting go off the board puts it back)
+const gb=$('#gBoard'); let gPress=false;
+const gInside=e=>{const r=gb.getBoundingClientRect(); return e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;};
+gb.addEventListener('pointerdown',e=>{const c=gColFromEvent(e); if(c<0) return; gPress=true; GV.hover=c;
+  try{gb.setPointerCapture(e.pointerId);}catch(err){} gRender();});
+gb.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse'&&!gPress) return; const c=gColFromEvent(e); if(c>=0&&c!==GV.hover||(c<0&&!gPress&&GV.hover!==-1)){GV.hover=c;gRender();}});
+gb.addEventListener('pointerup',e=>{if(!gPress) return; gPress=false; const c=GV.hover;
+  if(gInside(e)&&c>=0) gPlay(c);
+  if(e.pointerType!=='mouse') GV.hover=-1; gRender();});
+gb.addEventListener('pointercancel',()=>{gPress=false;GV.hover=-1;gRender();});
+gb.addEventListener('pointerleave',()=>{if(!gPress){GV.hover=-1;gRender();}});
+gb.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault(); const c=GV.hover<0?4:GV.hover+(e.key==='ArrowLeft'?-1:1); GV.hover=Math.max(0,Math.min(GW-1,c)); gRender();}
+  else if((e.key==='Enter'||e.key===' ')&&GV.hover>=0){e.preventDefault(); gPlay(GV.hover);}});
 $('#gLevel').onclick=e=>{const v=e.target.dataset&&e.target.dataset.v; if(!v) return; GV.level=v; store.set('gLevel',v); gRender();};
 $('#gSide').onclick=e=>{const v=e.target.dataset&&e.target.dataset.v; if(!v) return; GV.human=+v; store.set('gHuman',+v); gRender();};
 $('#gNew').onclick=gNew; $('#gUndo').onclick=gUndo; $('#gHint').onclick=gHint;
