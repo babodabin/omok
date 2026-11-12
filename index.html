@@ -250,7 +250,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         <button class="rulecard" data-rule="kr33"><b>한국식</b><span>흑·백 모두 정확히 다섯 개로 승리. 여섯 개 이상은 승리 아님. 삼삼은 흑·백 모두 금지.</span></button>
         <button class="rulecard" data-rule="free"><b>자유 오목</b><span>금지 없음. 흑·백 모두 다섯 개 이상이면 승리.</span></button>
         <button class="rulecard" data-rule="renju"><b>렌주</b><span>국제 공식 규칙. 흑만 삼삼·사사·장목 금지, 백은 제한 없음.</span></button>
-        <button class="rulecard gravcard" id="homeGravity"><b>중력 오목 <small style="font-size:12px;color:var(--warn)">재미용</small></b><span>세워 둔 9×9 판. 칩을 홈 위에 올려놓으면 아래로 떨어져요. 다섯 개를 먼저 이으면 승리.</span></button>
+        <button class="rulecard gravcard" id="homeGravity"><b>중력 오목 <small style="font-size:12px;color:var(--warn)">재미용</small></b><span>세워 둔 9×9 판. 칩을 홈 위에 올려놓으면 아래로 떨어져요. 5줄 게임과 4줄 게임 중에 골라요.</span></button>
       </div>
       <button class="linkbtn" id="homeResume" hidden>진행 중인 대국 이어서 두기</button>
     </div>
@@ -373,18 +373,19 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         <span><b style="color:var(--good)">▼</b>두면 바로 승리</span>
         <span><b style="color:var(--seal)">▼</b>꼭 막을 열</span>
         <span><b style="color:var(--warn)">×</b>두면 위 칸을 내줌</span>
-        <span><i class="lg" style="border:2px solid var(--good);border-radius:50%"></i>/<i class="lg" style="border:2px solid var(--seal);border-radius:50%"></i>기다리는 위협 (나 / AI)</span>
+        <span><i class="lg" style="border:2px solid var(--good);border-radius:50%"></i>/<i class="lg" style="border:2px solid #e9c46a;border-radius:50%"></i>기다리는 위협 (나 / AI)</span>
       </div>
     </div>
     <section class="panel">
       <div class="tabbody">
         <h2 class="setup-h">중력 오목 <small style="font-size:14px;color:var(--warn)">재미용</small></h2>
-        <p class="sub" style="margin:0">칩을 눌러 원하는 열의 홈 위로 옮긴 뒤 놓으면 판 뒤로 떨어져 맨 아래 구멍에 쌓여요. 그냥 눌러도 그 열에 떨어져요. 가로·세로·대각선으로 다섯 개를 먼저 이으면 승리. 공식 규칙이 아닌 재미용 변형이라 복기와 전적에는 남지 않아요.</p>
+        <p class="sub" style="margin:0">칩을 눌러 원하는 열의 홈 위로 옮긴 뒤 놓으면 판 뒤로 떨어져 맨 아래 구멍에 쌓여요. 그냥 눌러도 그 열에 떨어져요. 가로·세로·대각선으로 5줄 게임은 다섯 개, 4줄 게임은 네 개를 먼저 이으면 승리. 공식 규칙이 아닌 재미용 변형이라 복기와 전적에는 남지 않아요.</p>
+        <div><p class="label">게임 종류</p><div class="seg" id="gNeed"><button data-v="5">5줄 게임 (다섯 개)</button><button data-v="4">4줄 게임 (네 개)</button></div></div>
         <div class="row2">
           <div><p class="label">AI 실력</p><div class="seg" id="gLevel"><button data-v="easy">입문</button><button data-v="normal">중수</button><button data-v="hard">고수</button></div></div>
           <div><p class="label">내 돌</p><div class="seg" id="gSide"><button data-v="1">흑 (선)</button><button data-v="2">백 (후)</button></div></div>
         </div>
-        <p class="sidenote" style="margin:0">실력과 돌 색깔은 새 대국부터 적용돼요.</p>
+        <p class="sidenote" style="margin:0">게임 종류, 실력, 돌 색깔은 새 대국부터 적용돼요.</p>
         <div class="btns"><button class="btn primary" id="gNew">새 대국</button><button class="btn" id="gUndo">무르기</button><button class="btn" id="gHint">힌트</button></div>
         <div class="recipe"><p class="label">중력 오목 요령</p><ol>
           <li><b>바로 아래 칸 함정</b>: 상대가 노리는 칸 바로 아래에 두면 받침을 깔아 주는 셈이에요. 주황 × 열은 피하세요.</li>
@@ -1836,25 +1837,28 @@ $('#homeResume').onclick=()=>showMain('game');
 $('#homeLearn').onclick=()=>showMain('learn');
 $('#homeCodex').onclick=()=>showMain('codex');
 
-/* ---------- 중력 오목: 9×9, stones drop to the lowest empty cell of the chosen column, five in a row wins ---------- */
+/* ---------- 중력 오목: 9×9, stones drop to the lowest empty cell of the chosen column; five in a row wins, or four in the 4줄 game ---------- */
 const GW=9,GH=9,GN=GW*GH,gi=(c,r)=>r*GW+c,gc=i=>i%GW,gr=i=>(i/GW)|0;
 const GV={b:new Array(GN).fill(0),hist:[],over:null,win:null,thinking:false,human:store.get('gHuman',1),level:store.get('gLevel','normal'),
-  feed:[],hint:null,fall:null,gen:0,hover:-1};
-// every run of five cells on the board, used for both win checks and the AI's evaluation
-const GWINS=(()=>{const out=[];for(let r=0;r<GH;r++)for(let c=0;c<GW;c++)for(const [dc,dr] of [[1,0],[0,1],[1,1],[1,-1]]){
-  const w=[];for(let k=0;k<5;k++){const x=c+k*dc,y=r+k*dr;if(x<0||y<0||x>=GW||y>=GH)break;w.push(gi(x,y));} if(w.length===5) out.push(w);} return out;})();
+  feed:[],hint:null,fall:null,gen:0,hover:-1,need:store.get('gNeed',5)===4?4:5,aiHold:null};
+// GK: how many in a row win the game being played (GV.need is the choice for the next game)
+let GK=GV.need;
+// every run of GK cells on the board, used for both win checks and the AI's evaluation
+const gWindows=K=>{const out=[];for(let r=0;r<GH;r++)for(let c=0;c<GW;c++)for(const [dc,dr] of [[1,0],[0,1],[1,1],[1,-1]]){
+  const w=[];for(let k=0;k<K;k++){const x=c+k*dc,y=r+k*dr;if(x<0||y<0||x>=GW||y>=GH)break;w.push(gi(x,y));} if(w.length===K) out.push(w);} return out;};
+let GWINS=gWindows(GK);
 const gDrop=(b,c)=>{for(let r=GH-1;r>=0;r--) if(!b[gi(c,r)]) return gi(c,r); return -1;};
 function gLine(b,i){const c=b[i];
   for(const [dc,dr] of [[1,0],[0,1],[1,1],[1,-1]]){const line=[i];
     for(const s of [1,-1]){let k=1;while(true){const x=gc(i)+s*k*dc,y=gr(i)+s*k*dr;if(x<0||y<0||x>=GW||y>=GH||b[gi(x,y)]!==c)break;s>0?line.push(gi(x,y)):line.unshift(gi(x,y));k++;}}
-    if(line.length>=5) return line;}
+    if(line.length>=GK) return line;}
   return null;}
 const gWinsAt=(b,i,c)=>{if(i<0||b[i]) return false; b[i]=c; const w=!!gLine(b,i); b[i]=0; return w;};
-// cells that would complete five for color c, whether or not they can be played yet
+// cells that would complete the winning row for color c, whether or not they can be played yet
 const gThreatCells=(b,c)=>{const s=new Set();for(let i=0;i<GN;i++) if(!b[i]&&gWinsAt(b,i,c)) s.add(i); return [...s];};
 // columns ordered from the centre out (centre columns are worth more)
 const GORDER=[4,3,5,2,6,1,7,0,8];
-function gEval(b,me){const op=3-me,W=[0,1,8,60,1500,0];let s=0;
+function gEval(b,me){const op=3-me,W=GK===5?[0,1,8,60,1500,0]:[0,1,10,150,0];let s=0;
   for(const w of GWINS){let m=0,o=0;for(const i of w){if(b[i]===me)m++;else if(b[i]===op)o++;}
     if(m&&!o) s+=W[m]; else if(o&&!m) s-=W[o]*1.15;}
   for(let i=0;i<GN;i++) if(b[i]) s+=(b[i]===me?1:-1)*(4-Math.abs(gc(i)-4))*2;
@@ -1893,7 +1897,7 @@ function gCoach(b,me){
   return {cols,myWait:gThreatCells(b,me).filter(i=>!playable.has(i)),opWait:gThreatCells(b,op).filter(i=>!playable.has(i))};}
 const GL=c=>'ABCDEFGHI'[c]+'열';
 function gSay(who,html,tone=''){GV.feed.unshift({who,html,tone,n:GV.hist.length});GV.feed=GV.feed.slice(0,30);}
-function gNew(){GV.gen++;GV.fall=null;GV.b=new Array(GN).fill(0);GV.hist=[];GV.over=null;GV.win=null;GV.thinking=false;GV.feed=[];GV.hint=null;
+function gNew(){GV.gen++;GV.fall=null;GV.aiHold=null;GK=GV.need;GWINS=gWindows(GK);GV.b=new Array(GN).fill(0);GV.hist=[];GV.over=null;GV.win=null;GV.thinking=false;GV.feed=[];GV.hint=null;
   gSay('코치','칩을 원하는 열의 홈 위에 올려놓으면 판 뒤로 떨어져요. 홈 위 표시가 이길 열, 막을 열, 피할 열을 알려줘요.','tip');
   if(GV.human===2) gAI(); gRender();}
 // a chip falls behind the frame under gravity and bounces a little; the move only counts once it has landed
@@ -1905,7 +1909,7 @@ function gFall(i,c,done){
   const step=now=>{
     if(GV.gen!==gen||GV.fall!==f) return;
     const dt=Math.min(.033,(now-last)/1000); last=now;
-    f.v+=2600*dt; f.y+=f.v*dt;
+    f.v+=1900*dt; f.y+=f.v*dt;
     if(f.y>=f.target){f.y=f.target;
       if(f.bounces<2&&f.v>140){f.v=-f.v*.28;f.bounces++;}
       else{GV.fall=null;snd();done();return;}}
@@ -1920,7 +1924,7 @@ function gPlay(col){
   const before=gCoach(GV.b,GV.human), info=before.cols[col];
   const winCol=before.cols.find(x=>x&&x.win), blockCol=before.cols.find(x=>x&&x.block);
   gPlace(i,GV.human,()=>{
-    if(GV.over===GV.human) gSay('결과','<b>승리!</b> 다섯 개를 이었어요.','good');
+    if(GV.over===GV.human) gSay('결과',`<b>승리!</b> ${GK===5?'다섯':'네'} 개를 이었어요.`,'good');
     else if(winCol&&!info.win) gSay('나',`${GL(winCol.c)}에 두면 바로 이길 수 있었어요.`,'bad');
     else if(blockCol&&col!==blockCol.c) gSay('나',`AI가 ${GL(blockCol.c)}에 두면 이겨요. 그 열을 막았어야 해요.`,'bad');
     else if(info.danger) gSay('나',`${GL(col)}에 두어서 바로 위 칸을 AI에게 내줬어요. AI가 그 위에 두면 이겨요.`,'bad');
@@ -1930,6 +1934,8 @@ function gAI(){
   const gen=GV.gen; GV.thinking=true; gRender();
   setTimeout(()=>{ if(GV.gen!==gen) return;
     const ai=3-GV.human,i=gChoose(GV.b.slice(),ai,GV.level),pre=gCoach(GV.b,ai).cols[gc(i)];
+    GV.aiHold={col:gc(i),c:ai}; gRender();
+    setTimeout(()=>{ if(GV.gen!==gen) return; GV.aiHold=null;
     gPlace(i,ai,()=>{GV.thinking=false;
       if(GV.over===ai) gSay('결과','<b>패배.</b> 무르기로 되돌려 어디서 막았어야 했는지 보세요.','bad');
       else if(GV.over==='draw') gSay('결과','판이 가득 찼어요. 무승부.','');
@@ -1937,7 +1943,7 @@ function gAI(){
         const must=k.cols.filter(x=>x&&x.block), dangers=k.cols.filter(x=>x&&x.danger&&!x.win);
         if(must.length) gSay('AI',`AI가 ${GL(gc(i))}에 두었어요. <b>${must.map(x=>GL(x.c)).join(', ')}</b>을 막지 않으면 다음 수에 AI가 이겨요.`,'warn');
         else if(dangers.length) gSay('AI',`${dangers.map(x=>GL(x.c)).join(', ')}에 두면 바로 위 칸을 AI에게 내줘요. 피하세요.`,'warn');
-        if(pre&&pre.block) gSay('AI',`AI가 ${GL(gc(i))}에서 내 승리 자리를 막았어요.`,'');}});},GV.level==='hard'?60:300);}
+        if(pre&&pre.block) gSay('AI',`AI가 ${GL(gc(i))}에서 내 승리 자리를 막았어요.`,'');}});},reduceMotion?250:750);},GV.level==='hard'?450:700);}
 function gUndo(){if(GV.thinking||GV.fall||!GV.hist.length) return;
   do{const h=GV.hist.pop();GV.b[h.i]=0;}while(GV.hist.length&&(GV.hist.length%2===0?1:2)!==GV.human);
   if(!GV.hist.length&&GV.human===2){GV.over=null;GV.win=null;gAI();return;}
@@ -1967,6 +1973,7 @@ function gRender(){
   // my chip resting on the slot of the column I am holding it over
   const heldAt=turnMine&&GV.hover>=0?gDrop(b,GV.hover):-1;
   if(heldAt>=0) h+=gChip(gx(GV.hover),GFY-30,GV.human);
+  if(GV.aiHold) h+=gChip(gx(GV.aiHold.col),GFY-30,GV.aiHold.c);
   const R=14,hx=GFX+R,holes=[];
   for(let r=0;r<GH;r++) for(let c=0;c<GW;c++) holes.push(`M${gx(c)-18.5} ${gy(r)}a18.5 18.5 0 1 0 37 0a18.5 18.5 0 1 0 -37 0z`);
   h+=`<path fill-rule="evenodd" fill="var(--frame)" d="M${hx} ${GFY}h${GFW-2*R}a${R} ${R} 0 0 1 ${R} ${R}v${GFH-2*R}a${R} ${R} 0 0 1 -${R} ${R}h-${GFW-2*R}a${R} ${R} 0 0 1 -${R} -${R}v-${GFH-2*R}a${R} ${R} 0 0 1 ${R} -${R}z${holes.join('')}"/>
@@ -1982,11 +1989,11 @@ function gRender(){
       else if(x.block) h+=`<path d="M${cx-8} 6 L${cx+8} 6 L${cx} 18 Z" fill="var(--seal)"/>`;
       else if(x.danger) h+=`<path d="M${cx-6} 6 L${cx+6} 18 M${cx+6} 6 L${cx-6} 18" stroke="var(--warn)" stroke-width="3" stroke-linecap="round"/>`;});
     for(const i of k.myWait) h+=ring(i,'#9be3b8');
-    for(const i of k.opWait) h+=ring(i,'#ffab99');}
+    for(const i of k.opWait) h+=ring(i,'#e9c46a');}
   if(GV.hint!=null) h+=`<rect x="${gx(GV.hint)-23}" y="${GFY+8}" width="46" height="${GFH-16}" rx="12" fill="none" stroke="#ffe08a" stroke-width="2" stroke-dasharray="6 6" opacity=".7"/>`;
   const last=!f&&GV.hist.length?GV.hist[GV.hist.length-1].i:-1;
-  if(last>=0) h+=`<circle cx="${gx(gc(last))}" cy="${gy(gr(last))}" r="4.5" fill="#e0452f" stroke="#fff" stroke-width="1"/>`;
-  if(GV.win&&!f){const a=GV.win[0],z=GV.win[GV.win.length-1]; h+=`<line x1="${gx(gc(a))}" y1="${gy(gr(a))}" x2="${gx(gc(z))}" y2="${gy(gr(z))}" stroke="#e0452f" stroke-width="6" stroke-linecap="round" opacity=".9"/>`;}
+  if(last>=0) h+=`<circle cx="${gx(gc(last))}" cy="${gy(gr(last))}" r="4" fill="${GV.b[last]===1?'#c9cbd1':'#55585f'}"/>`;
+  if(GV.win&&!f){const a=GV.win[0],z=GV.win[GV.win.length-1]; h+=`<line x1="${gx(gc(a))}" y1="${gy(gr(a))}" x2="${gx(gc(z))}" y2="${gy(gr(z))}" stroke="#f2c94c" stroke-width="6" stroke-linecap="round" opacity=".85"/>`;}
   // a faint mark where the held chip would land
   if(heldAt>=0) h+=`<circle cx="${gx(gc(heldAt))}" cy="${gy(gr(heldAt))}" r="13" fill="none" stroke="#fff" stroke-width="1.8" stroke-dasharray="3 5" opacity=".55"/>`;
   $('#gBoard').innerHTML=h;
@@ -1997,11 +2004,12 @@ function gRender(){
   else if(GV.over){const won=GV.over===GV.human; tx.textContent=won?'승리':'패배'; st.classList.add(won?'win':'lose');}
   else if(GV.thinking){tx.textContent='AI 생각 중';st.classList.add('think');}
   else tx.textContent=turnMine?`당신 차례 (${GV.human===1?'흑':'백'})`:'AI 차례';
-  $('#gCount').textContent=`${GV.hist.length}수 · AI ${LEVEL_NAME[GV.level]}`;
+  $('#gCount').textContent=`${GK}줄 게임 · ${GV.hist.length}수 · AI ${LEVEL_NAME[GV.level]}`;
   $('#gFeed').innerHTML=GV.feed.map(e=>`<li class="${e.tone}"><span class="who">${e.who}${e.n?' '+e.n:''}</span><span>${e.html}</span></li>`).join('');
   $('#gNote').innerHTML=GV.feed.length?GV.feed[0].html:'';
   $('#gLevel').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===GV.level));
   $('#gSide').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',+x.dataset.v===GV.human));
+  $('#gNeed').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',+x.dataset.v===GV.need));
 }
 const gColFromEvent=e=>{const r=$('#gBoard').getBoundingClientRect(),x=(e.clientX-r.left)*GVW/r.width; const c=Math.round((x-gx(0))/GS); return c>=0&&c<GW?c:-1;};
 // pick up a chip: press to hold it over a slot, slide along the rail, let go to drop it (letting go off the board puts it back)
@@ -2020,6 +2028,9 @@ gb.addEventListener('keydown',e=>{
   else if((e.key==='Enter'||e.key===' ')&&GV.hover>=0){e.preventDefault(); gPlay(GV.hover);}});
 $('#gLevel').onclick=e=>{const v=e.target.dataset&&e.target.dataset.v; if(!v) return; GV.level=v; store.set('gLevel',v); gRender();};
 $('#gSide').onclick=e=>{const v=e.target.dataset&&e.target.dataset.v; if(!v) return; GV.human=+v; store.set('gHuman',+v); gRender();};
+// the row length starts a fresh game at once unless one is under way
+$('#gNeed').onclick=e=>{const v=e.target.dataset&&e.target.dataset.v; if(!v) return; GV.need=+v===4?4:5; store.set('gNeed',GV.need);
+  if(!GV.hist.length||GV.over) gNew(); else gRender();};
 $('#gNew').onclick=gNew; $('#gUndo').onclick=gUndo; $('#gHint').onclick=gHint;
 $('#gNewM').onclick=gNew; $('#gUndoM').onclick=gUndo; $('#gHintM').onclick=gHint;
 function showGravity(){inGame(true);$('#home').hidden=true;$('#mainView').hidden=true;$('#gravView').hidden=false;$('#btnHome').hidden=false; if(!GV.hist.length) gNew(); else gRender();}
