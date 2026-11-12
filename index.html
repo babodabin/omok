@@ -26,7 +26,7 @@ body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!impor
   --paper:#E3E4DE; --surface:#F0F0EB; --ink:#1B1D23; --muted:#5B606C; --rule:#C6C8C0;
   --accent:#2C4784; --accent-soft:#D5DBEA; --seal:#B3362A; --good:#2E7650; --warn:#A8701A;
   --wood:#D8AC67; --wood2:#C8954F; --grid:#3B2914;
-  --frame:#6E4529; --frame2:#8A5A37; --tray:#56361F; --hole:#6F8E8C; /* 중력 오목 stand: lacquered wood; a mid-tone backing so black and white chips both stand out, same in both themes */
+  --frame:#6E4529; --frame2:#8A5A37; --tray:#56361F; --hole:#69797B; /* 중력 오목 stand: lacquered wood; a mid-tone backing so black and white chips both stand out, same in both themes */
   --display:"Song Myung","Nanum Myeongjo",serif;
   --body:"Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
@@ -320,7 +320,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
           <label><input type="checkbox" id="optCoach" checked> 코치 <small>— 둔 수의 이름, 놓친 수를 알려줌</small></label>
           <label><input type="checkbox" id="optThreat" checked> 위협 표시 <small>— 막을 곳, 필승 자리, 금수를 판에 표시</small></label>
           <label><input type="checkbox" id="optSave" checked> 복기에 저장 <small>— 끄면 연습 대국으로, 끝나도 복기 목록에 남지 않음</small></label>
-          <label><input type="checkbox" id="optConfirm" checked> 두 번 눌러 두기 <small>— 휴대폰에서 잘못 누르는 것을 막음 (손가락으로 누를 때만)</small></label>
+          <label><input type="checkbox" id="optConfirm"> 두 번 눌러 두기 <small>— 켜면 휴대폰에서 한 번 누르면 미리 보이고, 같은 자리를 다시 눌러야 놓임</small></label>
           <label><input type="checkbox" id="optSound" checked> 돌 놓는 소리</label>
         </div>
         <button class="btn primary big" id="btnStart">대국 시작</button>
@@ -1975,20 +1975,20 @@ function gRender(){
   for(let c=0;c<GW;c++) h+=`<rect x="${gx(c)-16}" y="${GFY-7}" width="32" height="6" rx="3" fill="rgba(0,0,0,.55)"/>`;
   for(let r=0;r<GH;r++) for(let c=0;c<GW;c++) h+=`<circle cx="${gx(c)}" cy="${gy(r)}" r="19" fill="none" stroke="rgba(0,0,0,.4)" stroke-width="2.5"/>`;
   // column guidance above the rail for my turn, and waiting threats inside empty holes
-  const ring=(i,col)=>`<circle cx="${gx(gc(i))}" cy="${gy(gr(i))}" r="9" fill="none" stroke="#fff" stroke-width="5.5"/><circle cx="${gx(gc(i))}" cy="${gy(gr(i))}" r="9" fill="none" stroke="${col}" stroke-width="3"/>`;
+  const ring=(i,col)=>`<circle cx="${gx(gc(i))}" cy="${gy(gr(i))}" r="8" fill="none" stroke="${col}" stroke-width="2.5" opacity=".85"/>`;
   if(turnMine){const k=gCoach(b,GV.human);
     k.cols.forEach(x=>{if(!x) return; const cx=gx(x.c);
       if(x.win) h+=`<path d="M${cx-8} 6 L${cx+8} 6 L${cx} 18 Z" fill="var(--good)"/>`;
       else if(x.block) h+=`<path d="M${cx-8} 6 L${cx+8} 6 L${cx} 18 Z" fill="var(--seal)"/>`;
       else if(x.danger) h+=`<path d="M${cx-6} 6 L${cx+6} 18 M${cx+6} 6 L${cx-6} 18" stroke="var(--warn)" stroke-width="3" stroke-linecap="round"/>`;});
-    for(const i of k.myWait) h+=ring(i,'#1f8a55');
-    for(const i of k.opWait) h+=ring(i,'#c8321f');}
-  if(GV.hint!=null) h+=`<rect x="${gx(GV.hint)-23}" y="${GFY+8}" width="46" height="${GFH-16}" rx="12" fill="none" stroke="#ffe08a" stroke-width="3" stroke-dasharray="6 5"/>`;
+    for(const i of k.myWait) h+=ring(i,'#9be3b8');
+    for(const i of k.opWait) h+=ring(i,'#ffab99');}
+  if(GV.hint!=null) h+=`<rect x="${gx(GV.hint)-23}" y="${GFY+8}" width="46" height="${GFH-16}" rx="12" fill="none" stroke="#ffe08a" stroke-width="2" stroke-dasharray="6 6" opacity=".7"/>`;
   const last=!f&&GV.hist.length?GV.hist[GV.hist.length-1].i:-1;
   if(last>=0) h+=`<circle cx="${gx(gc(last))}" cy="${gy(gr(last))}" r="4.5" fill="#e0452f" stroke="#fff" stroke-width="1"/>`;
   if(GV.win&&!f){const a=GV.win[0],z=GV.win[GV.win.length-1]; h+=`<line x1="${gx(gc(a))}" y1="${gy(gr(a))}" x2="${gx(gc(z))}" y2="${gy(gr(z))}" stroke="#e0452f" stroke-width="6" stroke-linecap="round" opacity=".9"/>`;}
   // a faint mark where the held chip would land
-  if(heldAt>=0) h+=`<circle cx="${gx(gc(heldAt))}" cy="${gy(gr(heldAt))}" r="14" fill="none" stroke="#fff" stroke-width="2.5" stroke-dasharray="4 4"/>`;
+  if(heldAt>=0) h+=`<circle cx="${gx(gc(heldAt))}" cy="${gy(gr(heldAt))}" r="13" fill="none" stroke="#fff" stroke-width="1.8" stroke-dasharray="3 5" opacity=".55"/>`;
   $('#gBoard').innerHTML=h;
   // status, count, coach
   const st=$('#gStatus'),tx=$('#gStatusText'); st.className='pill';
@@ -2073,8 +2073,8 @@ renderOpPicker();
 $('#optCoach').onchange=e=>{opt.coach=e.target.checked;};
 opt.save=store.get('save',true)!==false; $('#optSave').checked=opt.save;
 $('#optSave').onchange=e=>{opt.save=e.target.checked; store.set('save',opt.save);};
-opt.confirm=store.get('confirm',true)!==false; $('#optConfirm').checked=opt.confirm;
-$('#optConfirm').onchange=e=>{opt.confirm=e.target.checked; store.set('confirm',opt.confirm);};
+opt.confirm=store.get('confirm2',false)===true; $('#optConfirm').checked=opt.confirm;
+$('#optConfirm').onchange=e=>{opt.confirm=e.target.checked; store.set('confirm2',opt.confirm);};
 opt.sound=store.get('sound',true)!==false; $('#optSound').checked=opt.sound;
 $('#optSound').onchange=e=>{opt.sound=e.target.checked; store.set('sound',opt.sound); snd();};
 $('#optThreat').onchange=e=>{opt.threat=e.target.checked;if(!G.over&&!G.thinking)prepHuman();render();};
