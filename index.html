@@ -11,6 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<script>if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));</script>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -47,6 +48,9 @@ header{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
   font-family:var(--display);font-size:17px;line-height:1;transform:rotate(-4deg);writing-mode:vertical-rl;letter-spacing:-1px}
 h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4vw,40px);margin:0;letter-spacing:.02em;text-wrap:balance}
 .sub{color:var(--muted);margin:0;font-size:14px}
+/* phones, while playing: the title shrinks to one row so the board starts near the top */
+@media (max-width:720px){.wrap.ingame header{flex-wrap:nowrap;gap:10px}.wrap.ingame header .sub{display:none}
+  .wrap.ingame .seal{width:30px;height:30px;font-size:11px;border-width:2px}.wrap.ingame h1{font-size:21px}.wrap.ingame #btnHome{padding:6px 10px;white-space:nowrap}}
 .main{display:grid;grid-template-columns:minmax(0,560px) minmax(300px,1fr);gap:22px;align-items:start}
 /* the board stays in view while the list beside it scrolls */
 @media (min-width:721px) and (min-height:700px){.boardcol{position:sticky;top:12px}}
@@ -84,7 +88,7 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4vw,40px);mar
 .chip.st-later{opacity:.62;border-style:dashed}
 .chip.st-off{opacity:.62}
 .chip.t-line i{background:var(--accent);border-radius:2px}
-.seqdia{width:180px}
+.seqdia{width:250px}
 /* review */
 .reviewbox{display:flex;flex-direction:column;gap:6px}
 .revlist{display:flex;flex-direction:column;gap:5px}
@@ -152,7 +156,7 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4vw,40px);mar
 .banner{margin:0;padding:8px 12px;border-radius:8px;border:1px solid var(--seal);color:var(--seal);font-size:14px}
 .mkey{margin:0;font-size:12px;color:var(--muted)}
 .movedetail .state{color:var(--muted)}
-.opdia{width:132px;max-width:100%;height:auto;display:block}
+.opdia{width:156px;max-width:100%;height:auto;display:block}
 .recipe{display:flex;flex-direction:column;gap:6px;background:var(--paper);border-radius:8px;padding:10px 12px}
 .recipe .label{margin:0}
 .recipe ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px;font-size:14px}
@@ -316,6 +320,8 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
           <label><input type="checkbox" id="optCoach" checked> 코치 <small>— 둔 수의 이름, 놓친 수를 알려줌</small></label>
           <label><input type="checkbox" id="optThreat" checked> 위협 표시 <small>— 막을 곳, 필승 자리, 금수를 판에 표시</small></label>
           <label><input type="checkbox" id="optSave" checked> 복기에 저장 <small>— 끄면 연습 대국으로, 끝나도 복기 목록에 남지 않음</small></label>
+          <label><input type="checkbox" id="optConfirm" checked> 두 번 눌러 두기 <small>— 휴대폰에서 잘못 누르는 것을 막음 (손가락으로 누를 때만)</small></label>
+          <label><input type="checkbox" id="optSound" checked> 돌 놓는 소리</label>
         </div>
         <button class="btn primary big" id="btnStart">대국 시작</button>
        </div>
@@ -690,6 +696,16 @@ if(!['free','kr33','renju'].includes(opt.rule)) opt.rule='kr33';
 const G={b:new Array(N*N).fill(0),hist:[],over:null,winLine:null,thinking:false,marks:{},pre:null,feed:[],fours:[],thr:[],moves:[],sel:null,snap:null,delta:{},gone:new Set(),made:{},tempo:new Set(),early:true,newKeys:new Set()};
 const LS={lesson:null,b:null,phase:'play',moves:0,marks:{},msg:null,win:null,last:null};
 let hover=-1;
+// touch: the first tap shows the stone at `pend`, a second tap on the same point plays it
+let pend=-1,lastPT='mouse';
+// a short wooden click when a stone lands
+let actx=null;
+function snd(){ if(!opt.sound) return;
+  try{const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return; actx=actx||new AC(); if(actx.state==='suspended') actx.resume();
+    const t=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();
+    o.type='triangle'; o.frequency.setValueAtTime(880,t); o.frequency.exponentialRampToValueAtTime(260,t+.05);
+    g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.3,t+.004); g.gain.exponentialRampToValueAtTime(.0001,t+.09);
+    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t+.1);}catch(e){}}
 
 /* ---------- rendering ---------- */
 const S=40,M=36,pos=v=>M+v*S;
@@ -782,10 +798,13 @@ function render(){
     h+=`<circle cx="${x}" cy="${y}" r="19" fill="none" stroke="var(--seal)" stroke-width="2.5" stroke-dasharray="2 4"/><text x="${x}" y="${y-24}" text-anchor="middle" font-size="12" font-family="Gowun Dodum,sans-serif" fill="var(--seal)" font-weight="700">놓친 수</text>`;}
   if(hover>=0&&!b[hover]&&canPlayNow()&&!(selItem&&selItem.cells.includes(hover))){const c=isLesson?(LS.lesson.me||1):opt.human; const x=pos(X(hover)),y=pos(Y(hover));
     h+=`<circle cx="${x}" cy="${y}" r="17" fill="${c===1?'#1d1f24':'#f4f3ec'}" opacity=".38"/>`;}
+  if(pend>=0&&(b[pend]||!canPlayNow())) pend=-1;
+  if(pend>=0){const c=isLesson?(LS.lesson.me||1):opt.human, x=pos(X(pend)),y=pos(Y(pend));
+    h+=`<circle cx="${x}" cy="${y}" r="17" fill="${c===1?'#1d1f24':'#f4f3ec'}" opacity=".7"/><circle cx="${x}" cy="${y}" r="22" fill="none" stroke="var(--accent)" stroke-width="3" stroke-dasharray="5 4"/>`;}
   svg.innerHTML=h;
   const mv=$('#mainView'); if(mv.classList.toggle) mv.classList.toggle('setup-only',tab==='game'&&setupMode);
   $('#mobileBar').hidden=!(tab==='game'&&!setupMode);
-  $('#mobileNote').innerHTML=selItem?`<b>${MOVE_DEF[selItem.k].n}</b>${selItem.made?` · 판에 있는 주형이에요. 굵은 파란 테두리 ${C(selItem.first)}가 다음 수`:selItem.cells.length?` · 판에 표시한 자리: ${selItem.cells.slice(0,6).map(C).join(' ')}`:''}. 자세한 설명은 아래 목록 위에 있어요.`:G.feed.length?G.feed[0].html:'';
+  $('#mobileNote').innerHTML=pend>=0&&!isLesson?`<b>${C(pend)}</b>에 두려면 같은 자리를 한 번 더 누르세요. 다른 자리를 누르면 그쪽으로 옮겨져요.`:selItem?`<b>${MOVE_DEF[selItem.k].n}</b>${selItem.made?` · 판에 있는 주형이에요. 굵은 파란 테두리 ${C(selItem.first)}가 다음 수`:selItem.cells.length?` · 판에 표시한 자리: ${selItem.cells.slice(0,6).map(C).join(' ')}`:''}. 자세한 설명은 아래 목록 위에 있어요.`:G.feed.length?G.feed[0].html:'';
   renderStatus(); renderMoves();
 }
 // the board shows a lesson: an opening study in 수 배우기, or a technique drill opened from 기술 도감
@@ -833,10 +852,31 @@ function renderFeed(){
   const mn=$('#mobileNote'); if(mn) mn.innerHTML=G.feed[0].html;
 }
 function newGame(){
+  G.gen=(G.gen||0)+1; store.set('live',null);
   G.b=new Array(N*N).fill(0);G.hist=[];G.over=null;G.winLine=null;G.thinking=false;G.marks={};G.pre=null;G.feed=[];G.fours=[];G.thr=[];G.moves=[];G.sel=null;G.snap=null;G.delta={};G.gone=new Set();G.made={};G.early=true;G.newKeys=new Set();G.line=null;G.prevLine=null;G.lineDevSaid=false;G.lineDoneSaid=false;
   renderFeed();
   if(opt.human===2) aiTurn(); else {prepHuman();}
   render();
+}
+// the unfinished game is kept so closing the page doesn't lose it
+function saveLive(){
+  if(G.over||!G.hist.length){store.set('live',null);return;}
+  store.set('live',{moves:G.hist.map(h=>h.i),rule:opt.rule,level:opt.level,human:opt.human,ops:opt.ops,made:G.made});
+}
+function restoreLive(L){
+  if(!L||!Array.isArray(L.moves)||!L.moves.length||L.moves.some(i=>!(i>=0&&i<N*N))) return;
+  if(['kr33','free','renju'].includes(L.rule)) opt.rule=L.rule;
+  if(['easy','normal','hard'].includes(L.level)) opt.level=L.level;
+  opt.human=L.human===2?2:1; if(Array.isArray(L.ops)) opt.ops=L.ops;
+  RULE=opt.rule; newGame(); G.gen++; G.thinking=false; syncControls(); showPlay();
+  L.moves.forEach((i,p)=>{const c=p%2===0?1:2; if(G.over||G.b[i]) return;
+    if(c===opt.human){const inf=infoAt(G.b,i,c); G.fours.push(inf.o4+inf.c4>0||!!inf.five); G.thr.push(inf.o4+inf.c4>0||inf.o3>0||!!inf.five);}
+    place(i,c);});
+  if(G.over){newGame(); enterSetup(); return;}
+  G.made=L.made&&typeof L.made==='object'?L.made:{};
+  if(turnColor()!==opt.human) aiTurn(); else prepHuman();
+  say('코치','지난번에 두던 판을 불러왔어요. 이어서 두세요.','tip');
+  saveLive(); render();
 }
 function newGameFrom(B,W){
   newGame(); G.feed=[];
@@ -860,6 +900,7 @@ function saveGame(){
 }
 function finish(){
   if(!G.over) return;
+  store.set('live',null);
   saveGame(); renderReviewList();
   if(G.over==='draw'){say('결과','판이 가득 찼습니다. 무승부.','');return;}
   const won=G.over===opt.human; const r=record[opt.level]||[0,0]; r[won?0:1]++; record[opt.level]=r; store.set('record',record);
@@ -869,7 +910,8 @@ function finish(){
     if(vcf){bump('vcf');say('결과','<b>승리!</b> 마지막을 사로만 몰아붙였어요. <b>VCF 승리</b>로 도감에 기록했습니다.','good');}
     else if(vct){bump('vct');say('결과','<b>승리!</b> 사와 열린 삼을 섞어 쉬지 않고 몰아붙였어요. <b>VCT 승리</b>로 도감에 기록했습니다.','good');}
     else say('결과','<b>승리!</b> 새 대국에서 다른 수도 시험해 보세요.','good');
-  } else say('결과','<b>패배.</b> 무르기로 되돌려 어디서 막았어야 했는지 확인해 보세요.','bad');
+  } else say('결과','<b>패배.</b> 복기로 어느 수가 잘못됐는지 보거나, 무르기로 되돌려 다시 두어 보세요.','bad');
+  if(G.savedId) say('복기','<button class="linkbtn" data-review="1">이 판 복기하기</button> 어느 수가 잘못됐고 어디에 뒀어야 했는지 바로 볼 수 있어요.','tip');
   G.marks={}; renderCodex();
 }
 function prepHuman(){
@@ -923,7 +965,6 @@ function prepHuman(){
     const dropped=prev.filter(p=>mineT(p.k)&&!has(p.k)&&!G.tempo.has(p.k)).map(p=>MOVE_DEF[p.k].n);
     const parts=[];
     if(dropped.length) parts.push(`<b>${dropped.join(', ')}</b> 목록에서 빠졌어요 (두 수 안에 만들 수 없어 이길 가능성이 낮아짐)`);
-    if(lost.length) parts.push(`줄어든 기회: ${lost.join(', ')}`);
     if(parts.length) say('줄어든 수',`AI가 ${C(lastAI.i)}에 둔 뒤 ${parts.join('. ')}`,'warn');
   }
   G.newKeys=new Set(prev.length&&!wasEarly?G.moves.filter(m=>mineT(m.k)&&!prev.some(p=>p.k===m.k)).map(m=>m.k):[]);
@@ -1128,7 +1169,7 @@ function lineHtml(o,path,hlIdx){
   while(nd.kids&&nd.kids.length){nd=nd.kids[0]; seq.push(nd);}
   if(hlIdx!=null&&seq[hlIdx]) seq[hlIdx]={...seq[hlIdx],hl:true};
   return `<div class="recipe"><p class="label">이어지는 수순 · 엔진 추천 (공식 정석 아님)</p>${seqDiagram(seq)}
-    <ol start="4">${seq.slice(3).map(m=>`<li>${m.c===1?'흑':'백'} · ${m.why}</li>`).join('')}</ol>
+    <ol start="4">${seq.slice(3).map(m=>`<li>${m.c===1?'흑':'백'} · ${m.why.replace(/내 /g,m.c===1?'흑 ':'백 ').replace(/상대 /g,m.c===1?'백 ':'흑 ')}</li>`).join('')}</ol>
     <p class="state" style="margin:0">그림은 기본 방향(백 2수가 ${o.t==='D'?'위':'오른쪽 위'}) 기준이에요. 이 주형에는 수순이 ${leaves(lineTree(o))}가지 있고, 그림은 그중 하나예요.</p></div>`;
 }
 for(const o of OPENINGS){
@@ -1353,7 +1394,7 @@ function humanMove(i){
   // completing the opening picked in the list (or shown by the hint) makes it this game's opening to follow up
   const so=G.moves.find(m=>m.k===G.sel&&OPEN_BY[m.k]&&m.place&&m.place.has(i));
   if(so){const pl=so.place.get(i),o=OPEN_BY[so.k],[ox,oy]=pl.f(o.dx,o.dy); G.made[so.k]={A:pl.A,B:pl.B,Q:idx(X(pl.A)+ox,Y(pl.A)+oy)};}
-  place(i,me); G.fours.push(inf.o4+inf.c4>0||!!inf.five); G.thr.push(inf.o4+inf.c4>0||inf.o3>0||!!inf.five);
+  place(i,me); snd(); G.fours.push(inf.o4+inf.c4>0||!!inf.five); G.thr.push(inf.o4+inf.c4>0||inf.o3>0||!!inf.five);
   G.marks={}; G.sel=null;
   if(G.hist.length===3){const o=detectOpening(G.hist);
     if(o){bump('opening'); say('주형',`이번 판은 <b>${o.ko}(${o.hj})</b>, ${o.t==='D'?'직접':'간접'} 주형 ${o.n}번입니다. 렌주 규칙 기준 평가: ${o.ev}.`,'tip');}}
@@ -1377,17 +1418,19 @@ function humanMove(i){
   if(k==='five'&&inf.o4+inf.c4===0&&G.fours.length) {}
   render(); renderCodex();
   if(G.over){finish();render();return;}
+  saveLive();
   snapshotChances();
   aiTurn();
 }
 function aiTurn(){
-  G.thinking=true; render();
+  const gen=G.gen; G.thinking=true; render();
   setTimeout(()=>{
     RULE=opt.rule;
     const ai=3-opt.human;
     const i=chooseMove(G.b.slice(),ai,opt.level);
     const inf=infoAt(G.b,i,ai), k=shapeKey(inf), tr=ai===2?trapAt(G.b,i):null;
-    place(i,ai); G.thinking=false;
+    if(gen!==G.gen) return; // a new or restored game replaced this one while the AI was thinking
+    place(i,ai); snd(); G.thinking=false;
     if(tr&&!G.over) say('AI',`${C(i)} <b>금수 유도</b>. ${C(tr.at)}를 막아야 하지만 그 자리는 흑의 ${tr.kind} 금수라 둘 수 없어요. 렌주에서 흑이 조심해야 하는 이유입니다.`,'bad');
     if(G.over){say('AI',`${C(i)} 오목.`,'bad');finish();render();return;}
     if(G.hist.length===3){const o=detectOpening(G.hist);
@@ -1403,7 +1446,7 @@ function aiTurn(){
         say('AI',`${C(i)} <b>${SHAPE_NAME[k]}</b>. ${ends.map(C).join(' ')} 중 하나를 막으세요.${k==='split3'?' 띈 삼은 가운데를 막는 게 안전해요.':''}`,'warn');
       }
     }
-    prepHuman(); render();
+    prepHuman(); saveLive(); render();
   },opt.level==='hard'?120:380);
 }
 function undo(){
@@ -1416,7 +1459,7 @@ function undo(){
   while(G.hist.length&&turnColor()!==opt.human){const h=G.hist.pop();G.b[h.i]=0;}
   G.over=null;G.winLine=null;
   if(!G.hist.length&&opt.human===2){aiTurn();return;}
-  G.moves=[]; G.snap=null; G.gone=new Set(); G.early=true; G.prevLine=null; G.lineDevSaid=false; G.lineDoneSaid=false; prepHuman(); say('코치','한 수 물렸습니다.','tip'); render();
+  G.moves=[]; G.snap=null; G.gone=new Set(); G.early=true; G.prevLine=null; G.lineDevSaid=false; G.lineDoneSaid=false; prepHuman(); say('코치','한 수 물렸습니다.','tip'); saveLive(); render();
 }
 function hint(){
   if(!canPlayNow()) return;
@@ -1780,10 +1823,13 @@ function switchTab(t){tab=t;
 }
 ['game','learn','codex'].forEach(k=>$('#tab-'+k).onclick=()=>switchTab(k));
 // home screen ↔ main view
-function showHome(){$('#home').hidden=false;$('#mainView').hidden=true;$('#gravView').hidden=true;$('#btnHome').hidden=true;
+const inGame=v=>{const w=$('.wrap'); if(w&&w.classList&&w.classList.toggle) w.classList.toggle('ingame',v);};
+function showHome(){inGame(false);$('#home').hidden=false;$('#mainView').hidden=true;$('#gravView').hidden=true;$('#btnHome').hidden=true;
   $('#homeResume').hidden=!(G.hist.length&&!G.over&&!setupMode);}
-function showMain(t){$('#home').hidden=true;$('#gravView').hidden=true;$('#mainView').hidden=false;$('#btnHome').hidden=false;switchTab(t);}
+function showMain(t){inGame(true);$('#home').hidden=true;$('#gravView').hidden=true;$('#mainView').hidden=false;$('#btnHome').hidden=false;switchTab(t);}
 $('#btnHome').onclick=showHome;
+if(document.addEventListener) document.addEventListener('click',e=>{const t=e.target; if(!t||!t.dataset||!t.dataset.review) return;
+  const g=games.find(x=>x.id===G.savedId); if(g){showMain('codex'); openReview(g);}});
 $('#home').querySelectorAll('.rulecard[data-rule]').forEach(bt=>bt.onclick=()=>{opt.rule=bt.dataset.rule;store.set('rule2',opt.rule);syncControls();
   showMain('game');enterSetup();});
 $('#homeResume').onclick=()=>showMain('game');
@@ -1852,7 +1898,7 @@ function gNew(){GV.gen++;GV.fall=null;GV.b=new Array(GN).fill(0);GV.hist=[];GV.o
   if(GV.human===2) gAI(); gRender();}
 // a chip falls behind the frame under gravity and bounces a little; the move only counts once it has landed
 function gFall(i,c,done){
-  if(reduceMotion){done();return;}
+  if(reduceMotion){snd();done();return;}
   const gen=GV.gen,f={i,c,x:gx(gc(i)),y:GFY-30,v:0,target:gy(gr(i)),bounces:0};
   GV.fall=f; gRender();
   let last=performance.now();
@@ -1862,7 +1908,7 @@ function gFall(i,c,done){
     f.v+=2600*dt; f.y+=f.v*dt;
     if(f.y>=f.target){f.y=f.target;
       if(f.bounces<2&&f.v>140){f.v=-f.v*.28;f.bounces++;}
-      else{GV.fall=null;done();return;}}
+      else{GV.fall=null;snd();done();return;}}
     const el=$('#gFalling'); if(el) el.setAttribute('transform',`translate(0 ${f.y})`);
     requestAnimationFrame(step);};
   requestAnimationFrame(step);}
@@ -1976,11 +2022,14 @@ $('#gLevel').onclick=e=>{const v=e.target.dataset&&e.target.dataset.v; if(!v) re
 $('#gSide').onclick=e=>{const v=e.target.dataset&&e.target.dataset.v; if(!v) return; GV.human=+v; store.set('gHuman',+v); gRender();};
 $('#gNew').onclick=gNew; $('#gUndo').onclick=gUndo; $('#gHint').onclick=gHint;
 $('#gNewM').onclick=gNew; $('#gUndoM').onclick=gUndo; $('#gHintM').onclick=gHint;
-function showGravity(){$('#home').hidden=true;$('#mainView').hidden=true;$('#gravView').hidden=false;$('#btnHome').hidden=false; if(!GV.hist.length) gNew(); else gRender();}
+function showGravity(){inGame(true);$('#home').hidden=true;$('#mainView').hidden=true;$('#gravView').hidden=false;$('#btnHome').hidden=false; if(!GV.hist.length) gNew(); else gRender();}
 $('#homeGravity').onclick=showGravity;
 function cellFromEvent(e){const r=svg.getBoundingClientRect();const sx=(e.clientX-r.left)*632/r.width,sy=(e.clientY-r.top)*632/r.height;
   const x=Math.round((sx-M)/S),y=Math.round((sy-M)/S);return inb(x,y)?idx(x,y):-1;}
+svg.addEventListener('pointerdown',e=>{lastPT=e.pointerType||'mouse';});
 svg.addEventListener('click',e=>{const i=cellFromEvent(e);if(i<0)return;
+  if(opt.confirm&&lastPT!=='mouse'&&canPlayNow()&&!(lessonView()?LS.b:G.b)[i]&&pend!==i){pend=i;render();return;}
+  pend=-1;
   if(lessonView()) lessonMove(i); else if(tab==='game') humanMove(i); else {switchTab('game'); humanMove(i);}});
 svg.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;const i=cellFromEvent(e);if(i!==hover){hover=i;render();}});
 svg.addEventListener('pointerleave',()=>{hover=-1;render();});
@@ -2024,13 +2073,18 @@ renderOpPicker();
 $('#optCoach').onchange=e=>{opt.coach=e.target.checked;};
 opt.save=store.get('save',true)!==false; $('#optSave').checked=opt.save;
 $('#optSave').onchange=e=>{opt.save=e.target.checked; store.set('save',opt.save);};
+opt.confirm=store.get('confirm',true)!==false; $('#optConfirm').checked=opt.confirm;
+$('#optConfirm').onchange=e=>{opt.confirm=e.target.checked; store.set('confirm',opt.confirm);};
+opt.sound=store.get('sound',true)!==false; $('#optSound').checked=opt.sound;
+$('#optSound').onchange=e=>{opt.sound=e.target.checked; store.set('sound',opt.sound); snd();};
 $('#optThreat').onchange=e=>{opt.threat=e.target.checked;if(!G.over&&!G.thinking)prepHuman();render();};
 $('#btnNew').onclick=enterSetup;
 $('#mUndo').onclick=undo; $('#mHint').onclick=hint; $('#mNew').onclick=()=>{enterSetup(); window.scrollTo(0,0);}; $('#btnUndo').onclick=undo; $('#btnHint').onclick=hint;
 
 syncControls(); renderChapters(); renderCodex(); renderReviewList();
 // a game is ready behind the home screen, which opens first
-newGame(); showHome();
+const live0=store.get('live',null);
+newGame(); restoreLive(live0); showHome();
 window.__omok={G,LS,LESSONS,opt,showPlay,setRule:r=>{RULE=r;},bannedKind,trapAt,cellInfo,infoAt,findVCF,findVCT,fourPointsAt,chooseMove,loadLesson,lessonMove,switchTab,idx,threatMax,value,shapeKey};
 })();
 </script>
