@@ -202,6 +202,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .feed .who{font-family:var(--mono);font-size:11.5px;color:var(--muted);padding-top:2px;white-space:nowrap}
 .feed b{font-weight:700}
 .coord{font-family:var(--mono);font-size:12.5px;background:var(--accent-soft);padding:0 5px;border-radius:4px}
+#mPlace .coord{background:none;padding:0;font-size:inherit}
 .empty{color:var(--muted);font-size:14px}
 /* lessons */
 .lesson{display:flex;flex-direction:column;gap:10px}
@@ -2048,13 +2049,23 @@ function showGravity(){inGame(true);$('#home').hidden=true;$('#mainView').hidden
 $('#homeGravity').onclick=showGravity;
 function cellFromEvent(e){const r=svg.getBoundingClientRect();const sx=(e.clientX-r.left)*632/r.width,sy=(e.clientY-r.top)*632/r.height;
   const x=Math.round((sx-M)/S),y=Math.round((sy-M)/S);return inb(x,y)?idx(x,y):-1;}
-svg.addEventListener('pointerdown',e=>{lastPT=e.pointerType||'mouse';});
-svg.addEventListener('click',e=>{const i=cellFromEvent(e);if(i<0)return;
+// A tap is taken from pointerdown + pointerup on the board itself, not from `click`: on a touch screen the click goes to the
+// element first touched, and a redraw in between has already replaced that element, so the click never reached the board.
+let downAt=null,tapAt=0;
+svg.addEventListener('pointerdown',e=>{lastPT=e.pointerType||'mouse'; downAt={x:e.clientX,y:e.clientY,id:e.pointerId};
+  try{svg.setPointerCapture(e.pointerId);}catch(err){}});
+svg.addEventListener('pointerup',e=>{const d=downAt; downAt=null;
+  if(!d||d.id!==e.pointerId||Math.hypot(e.clientX-d.x,e.clientY-d.y)>12) return; // a drag or a scroll, not a tap
+  tapAt=performance.now(); boardTap(e);});
+svg.addEventListener('pointercancel',()=>{downAt=null;});
+// clicks that come without pointer events (keyboard, assistive tools) still work; the one that follows a handled tap is skipped
+svg.addEventListener('click',e=>{if(performance.now()-tapAt<700) return; boardTap(e);});
+function boardTap(e){const i=cellFromEvent(e);if(i<0)return;
   if(opt.confirm&&lastPT!=='mouse'&&canPlayNow()&&!(lessonView()?LS.b:G.b)[i]&&pend!==i){pend=i;render();return;}
   pend=-1;
-  if(lessonView()) lessonMove(i); else if(tab==='game') humanMove(i); else {switchTab('game'); humanMove(i);}});
+  if(lessonView()) lessonMove(i); else if(tab==='game') humanMove(i); else {switchTab('game'); humanMove(i);}}
 svg.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;const i=cellFromEvent(e);if(i!==hover){hover=i;render();}});
-svg.addEventListener('pointerleave',()=>{hover=-1;render();});
+svg.addEventListener('pointerleave',()=>{if(hover!==-1){hover=-1;render();}});
 const RULE_NOTE={
   free:'자유 오목: 금지된 자리가 없고, 흑·백 모두 다섯 개 이상(여섯 개 이상도) 이으면 이깁니다.',
   kr33:'한국식(일반룰): 흑·백 모두 정확히 다섯 개여야 이깁니다. 여섯 개 이상(장목)은 둘 수는 있지만 승리가 아니에요. 삼삼(열린 삼 두 개를 동시에)은 흑·백 모두 금지, 사삼은 둘 수 있어요.',
