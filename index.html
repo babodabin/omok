@@ -389,12 +389,12 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       <div class="tabbody">
         <h2 class="setup-h">중력 오목 <small style="font-size:14px;color:var(--warn)">재미용</small></h2>
         <p class="sub" style="margin:0">칩을 눌러 원하는 열의 홈 위로 옮긴 뒤 놓으면 판 뒤로 떨어져 맨 아래 구멍에 쌓여요. 그냥 눌러도 그 열에 떨어져요. 가로·세로·대각선으로 5줄 게임은 9×9 판에서 다섯 개, 4줄 게임은 7×6 판에서 네 개를 먼저 이으면 승리. 4줄 게임에서 아무도 네 개를 못 잇고 판이 차면, 3개짜리 줄이 많은 쪽이 이겨요(같으면 2개짜리 줄, 그래도 같으면 무승부). 점수는 판 위에 실시간으로 보여요. 공식 규칙이 아닌 재미용 변형이라 복기와 전적에는 남지 않아요.</p>
-        <div><p class="label">게임 종류</p><div class="seg" id="gNeed"><button data-v="5">5줄 게임 (9×9)</button><button data-v="4">4줄 게임 (7×6)</button></div></div>
+        <div><p class="label">게임 종류</p><div class="seg" id="gNeed"><button data-v="4">4줄 게임 (7×6)</button><button data-v="5">5줄 게임 (9×9)</button></div></div>
         <div class="row2">
           <div><p class="label">AI 실력</p><div class="seg" id="gLevel"><button data-v="easy">입문</button><button data-v="normal">중수</button><button data-v="hard">고수</button></div></div>
           <div><p class="label">내 돌</p><div class="seg" id="gSide"><button data-v="1">흑 (선)</button><button data-v="2">백 (후)</button></div></div>
         </div>
-        <p class="sidenote" style="margin:0">게임 종류, 실력, 돌 색깔은 새 대국부터 적용돼요.</p>
+        <p class="sidenote" style="margin:0">게임 종류를 바꾸면 바로 새 판이 시작돼요. 실력과 돌 색깔은 새 대국부터 적용돼요.</p>
         <div class="btns"><button class="btn primary" id="gNew">새 대국</button><button class="btn" id="gUndo">무르기</button><button class="btn" id="gHint">힌트</button></div>
         <div class="recipe"><p class="label">중력 오목 요령</p><ol>
           <li><b>바로 아래 칸 함정</b>: 상대가 노리는 칸 바로 아래에 두면 받침을 깔아 주는 셈이에요. 주황 × 열은 피하세요.</li>
@@ -1852,7 +1852,7 @@ $('#homeCodex').onclick=()=>showMain('codex');
    whoever has more lines of three wins (then lines of two), otherwise it is a draw. ---------- */
 let GW=9,GH=9,GN=GW*GH; const gi=(c,r)=>r*GW+c,gc=i=>i%GW,gr=i=>(i/GW)|0;
 const GV={b:new Array(GN).fill(0),hist:[],over:null,win:null,thinking:false,human:store.get('gHuman',1),level:store.get('gLevel','normal'),
-  feed:[],hint:null,fall:null,gen:0,hover:-1,need:store.get('gNeed',5)===4?4:5,aiHold:null};
+  feed:[],hint:null,fall:null,gen:0,hover:-1,need:store.get('gNeed',4)===5?5:4,aiHold:null};
 // GK: how many in a row win the game being played (GV.need is the choice for the next game)
 let GK=GV.need;
 // every run of GK cells on the board, used for both win checks and the AI's evaluation
@@ -2079,9 +2079,9 @@ gb.addEventListener('keydown',e=>{
   else if((e.key==='Enter'||e.key===' ')&&GV.hover>=0){e.preventDefault(); gPlay(GV.hover);}});
 $('#gLevel').onclick=e=>{const v=e.target.dataset&&e.target.dataset.v; if(!v) return; GV.level=v; store.set('gLevel',v); gRender();};
 $('#gSide').onclick=e=>{const v=e.target.dataset&&e.target.dataset.v; if(!v) return; GV.human=+v; store.set('gHuman',+v); gRender();};
-// the row length starts a fresh game at once unless one is under way
-$('#gNeed').onclick=e=>{const v=e.target.dataset&&e.target.dataset.v; if(!v) return; GV.need=+v===4?4:5; store.set('gNeed',GV.need);
-  if(!GV.hist.length||GV.over) gNew(); else gRender();};
+// picking the game type starts that game at once, so the board always matches the highlighted button
+$('#gNeed').onclick=e=>{const v=e.target.dataset&&e.target.dataset.v; if(!v) return; const n=+v===5?5:4; if(n===GK&&n===GV.need) return;
+  GV.need=n; store.set('gNeed',n); gNew();};
 $('#gNew').onclick=gNew; $('#gUndo').onclick=gUndo; $('#gHint').onclick=gHint;
 $('#gNewM').onclick=gNew; $('#gUndoM').onclick=gUndo; $('#gHintM').onclick=gHint;
 function showGravity(){inGame(true);$('#home').hidden=true;$('#mainView').hidden=true;$('#gravView').hidden=false;$('#btnHome').hidden=false; if(!GV.hist.length) gNew(); else gRender();}
