@@ -105,6 +105,16 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4vw,40px);mar
 /* 중력 오목 */
 .gravity{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,420px);gap:22px;align-items:start}
 @media (max-width:720px){.gravity{grid-template-columns:minmax(0,1fr)}}
+/* game result overlay */
+.result{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.45)}
+.result[hidden]{display:none}
+.result-card{background:var(--surface);border:1px solid var(--rule);border-radius:16px;padding:26px 24px 20px;min-width:min(320px,100%);max-width:420px;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.35);animation:resultPop .35s ease-out}
+.result-title{margin:0;font-family:var(--display);font-size:clamp(54px,16vw,84px);line-height:1.05;letter-spacing:.04em}
+.result.win .result-title{color:var(--good)} .result.lose .result-title{color:var(--seal)} .result.draw .result-title{color:var(--ink)}
+.result-sub{margin:10px 0 18px;color:var(--muted);font-size:15px;line-height:1.55}
+.result-btns{justify-content:center}
+@keyframes resultPop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){.result-card{animation:none}}
 /* 4줄 game: the live line score above the board */
 .gscore{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13.5px;padding:7px 12px;border-radius:8px;background:var(--surface);border:1px solid var(--rule);max-width:520px}
 .gscore span{display:inline-flex;align-items:center;gap:6px}
@@ -405,6 +415,14 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       </div>
     </section>
   </section>
+</div>
+<!-- the result of a finished game, shown big over everything; tap anywhere outside the buttons to look at the board -->
+<div class="result" id="resultBox" hidden role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+  <div class="result-card">
+    <p class="result-title" id="resultTitle"></p>
+    <p class="result-sub" id="resultSub"></p>
+    <div class="btns result-btns" id="resultBtns"></div>
+  </div>
 </div>
 
 <script>
@@ -863,7 +881,7 @@ function renderFeed(){
   const mn=$('#mobileNote'); if(mn) mn.innerHTML=G.feed[0].html;
 }
 function newGame(){
-  G.gen=(G.gen||0)+1; store.set('live',null);
+  hideResult(); G.gen=(G.gen||0)+1; store.set('live',null);
   G.b=new Array(N*N).fill(0);G.hist=[];G.over=null;G.winLine=null;G.thinking=false;G.marks={};G.pre=null;G.feed=[];G.fours=[];G.thr=[];G.moves=[];G.sel=null;G.snap=null;G.delta={};G.gone=new Set();G.made={};G.early=true;G.newKeys=new Set();G.line=null;G.prevLine=null;G.lineDevSaid=false;G.lineDoneSaid=false;
   renderFeed();
   if(opt.human===2) aiTurn(); else {prepHuman();}
@@ -924,6 +942,11 @@ function finish(){
   } else say('결과','<b>패배.</b> 복기로 어느 수가 잘못됐는지 보거나, 무르기로 되돌려 다시 두어 보세요.','bad');
   if(G.savedId) say('복기','<button class="linkbtn" data-review="1">이 판 복기하기</button> 어느 수가 잘못됐고 어디에 뒀어야 했는지 바로 볼 수 있어요.','tip');
   G.marks={}; renderCodex();
+  const kind=G.over==='draw'?'draw':G.over===opt.human?'win':'lose';
+  const acts=[['새 대국',()=>{enterSetup(); window.scrollTo(0,0);},true]];
+  if(G.savedId) acts.push(['복기하기',()=>{const g=games.find(x=>x.id===G.savedId); if(g){showMain('codex'); openReview(g);}}]);
+  acts.push(['무르기',undo]);
+  const gen=G.gen; setTimeout(()=>{if(G.gen===gen&&G.over) showResult(kind,kind==='draw'?'판이 가득 찼어요.':kind==='win'?'오목을 완성했어요.':'AI가 오목을 완성했어요.',acts);},350);
 }
 function prepHuman(){
   // analysis for coach + overlay before the human moves
@@ -1461,7 +1484,7 @@ function aiTurn(){
   },opt.level==='hard'?120:380);
 }
 function undo(){
-  if(G.thinking||!G.hist.length) return;
+  if(G.thinking||!G.hist.length) return; hideResult();
   if(G.over&&G.over!=='draw'){const r=record[opt.level];if(r){r[G.over===opt.human?0:1]=Math.max(0,r[G.over===opt.human?0:1]-1);store.set('record',record);}}
   // taking back the last move un-finishes that game, so drop it from the review list if it was saved
   if(G.over&&G.savedId&&games[0]&&games[0].id===G.savedId){games.shift();store.set('games',games);renderReviewList();G.savedId=null;}
@@ -1835,7 +1858,7 @@ function switchTab(t){tab=t;
 ['game','learn','codex'].forEach(k=>$('#tab-'+k).onclick=()=>switchTab(k));
 // home screen ↔ main view
 const inGame=v=>{const w=$('.wrap'); if(w&&w.classList&&w.classList.toggle) w.classList.toggle('ingame',v);};
-function showHome(){inGame(false);$('#home').hidden=false;$('#mainView').hidden=true;$('#gravView').hidden=true;$('#btnHome').hidden=true;
+function showHome(){hideResult();inGame(false);$('#home').hidden=false;$('#mainView').hidden=true;$('#gravView').hidden=true;$('#btnHome').hidden=true;
   $('#homeResume').hidden=!(G.hist.length&&!G.over&&!setupMode);}
 function showMain(t){inGame(true);$('#home').hidden=true;$('#gravView').hidden=true;$('#mainView').hidden=false;$('#btnHome').hidden=false;switchTab(t);}
 $('#btnHome').onclick=showHome;
@@ -1922,15 +1945,32 @@ function gCoach(b,me){
   const playable=new Set(cols.filter(Boolean).map(x=>x.i));
   return {cols,myWait:gThreatCells(b,me).filter(i=>!playable.has(i)),opWait:gThreatCells(b,op).filter(i=>!playable.has(i))};}
 const GL=c=>'ABCDEFGHI'[c]+'열';
+// the big result card; actions are [label, handler, primary?]
+function showResult(kind,sub,actions){
+  const box=$('#resultBox'); box.className='result '+kind;
+  $('#resultTitle').textContent=kind==='win'?'승리!':kind==='lose'?'패배':'무승부';
+  $('#resultSub').innerHTML=sub;
+  const btns=$('#resultBtns'); btns.innerHTML='';
+  for(const [label,fn,primary] of [...actions,['판 보기',null]]){const b=document.createElement('button');
+    b.className='btn'+(primary?' primary':''); b.textContent=label; b.onclick=()=>{hideResult(); if(fn) fn();}; btns.appendChild(b);}
+  box.hidden=false; const f=btns.querySelector('button'); if(f&&f.focus) f.focus();}
+function hideResult(){$('#resultBox').hidden=true;}
+$('#resultBox').onclick=e=>{if(e.target===e.currentTarget) hideResult();};
+if(document.addEventListener) document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#resultBox').hidden) hideResult();});
 // the result line, said once when the game ends
 function gEndSay(){
   if(GV.byScore){const s=GV.byScore,me=GV.human,ai=3-me,t=`3개 줄 나 <b>${s[me].t3}</b> : AI <b>${s[ai].t3}</b>`+(s[me].t3===s[ai].t3?`, 2개 줄 나 <b>${s[me].t2}</b> : AI <b>${s[ai].t2}</b>`:'');
     gSay('결과',GV.over==='draw'?`판이 가득 찼고 점수도 같아요. 무승부. (${t})`:GV.over===me?`<b>승리!</b> 아무도 네 개를 못 이었지만 점수로 이겼어요. (${t})`:`<b>패배.</b> 아무도 네 개를 못 이었고 점수에서 졌어요. (${t})`,GV.over==='draw'?'':GV.over===me?'good':'bad');}
   else if(GV.over==='draw') gSay('결과','판이 가득 찼어요. 무승부.','');
   else if(GV.over===GV.human) gSay('결과',`<b>승리!</b> ${GK===5?'다섯':'네'} 개를 이었어요.`,'good');
-  else gSay('결과','<b>패배.</b> 무르기로 되돌려 어디서 막았어야 했는지 보세요.','bad');}
+  else gSay('결과','<b>패배.</b> 무르기로 되돌려 어디서 막았어야 했는지 보세요.','bad');
+  const kind=GV.over==='draw'?'draw':GV.over===GV.human?'win':'lose', s=GV.byScore, me=GV.human, ai=3-me;
+  const why=s?`판이 가득 찼어요. 3개 줄 나 ${s[me].t3} : AI ${s[ai].t3}`+(s[me].t3===s[ai].t3?`, 2개 줄 나 ${s[me].t2} : AI ${s[ai].t2}`:'')
+    :kind==='draw'?'판이 가득 찼어요.':kind==='win'?`${GK===5?'다섯':'네'} 개를 이었어요.`:`AI가 ${GK===5?'다섯':'네'} 개를 이었어요.`;
+  // let the chip land and the line show before the card covers the board
+  const gen=GV.gen; setTimeout(()=>{if(GV.gen===gen&&GV.over) showResult(kind,why,[['새 대국',gNew,true],['무르기',gUndo]]);},reduceMotion?0:450);}
 function gSay(who,html,tone=''){GV.feed.unshift({who,html,tone,n:GV.hist.length});GV.feed=GV.feed.slice(0,30);}
-function gNew(){GV.gen++;GV.fall=null;GV.aiHold=null;GV.byScore=null;GV.rest=null;GV.hover=-1;GK=GV.need;gSetSize();GV.b=new Array(GN).fill(0);GV.hist=[];GV.over=null;GV.win=null;GV.thinking=false;GV.feed=[];GV.hint=null;
+function gNew(){hideResult();GV.gen++;GV.fall=null;GV.aiHold=null;GV.byScore=null;GV.rest=null;GV.hover=-1;GK=GV.need;gSetSize();GV.b=new Array(GN).fill(0);GV.hist=[];GV.over=null;GV.win=null;GV.thinking=false;GV.feed=[];GV.hint=null;
   gSay('코치','칩을 원하는 열의 홈 위에 올려놓으면 판 뒤로 떨어져요. 홈 위 표시가 이길 열, 막을 열, 피할 열을 알려줘요.','tip');
   if(GV.human===2) gAI(); gRender();}
 // a chip falls behind the frame under gravity and bounces a little; the move only counts once it has landed
@@ -1979,7 +2019,7 @@ function gAI(){
         if(must.length) gSay('AI',`AI가 ${GL(gc(i))}에 두었어요. <b>${must.map(x=>GL(x.c)).join(', ')}</b>을 막지 않으면 다음 수에 AI가 이겨요.`,'warn');
         else if(dangers.length) gSay('AI',`${dangers.map(x=>GL(x.c)).join(', ')}에 두면 바로 위 칸을 AI에게 내줘요. 피하세요.`,'warn');
         if(pre&&pre.block) gSay('AI',`AI가 ${GL(gc(i))}에서 내 승리 자리를 막았어요.`,'');}});},reduceMotion?250:750);},GV.level==='hard'?450:700);}
-function gUndo(){if(GV.thinking||GV.fall||GV.aiHold||!GV.hist.length) return;
+function gUndo(){if(GV.thinking||GV.fall||GV.aiHold||!GV.hist.length) return; hideResult();
   do{const h=GV.hist.pop();GV.b[h.i]=0;}while(GV.hist.length&&(GV.hist.length%2===0?1:2)!==GV.human);
   GV.byScore=null;
   if(!GV.hist.length&&GV.human===2){GV.over=null;GV.win=null;gAI();return;}
