@@ -667,8 +667,9 @@ function chooseMove(b,color,level){
 
 /* ---------- storage ---------- */
 // the one place the version is written; it names the offline cache and heads the update log
-const APP_VERSION='1.1';
+const APP_VERSION='1.1.1';
 const UPDATES=[
+  {v:'1.1.1',date:'2026-11-27',text:'Claude 링크에서 기록 저장을 누르면 저장한 것처럼 나오던 것을, 휴대폰 주소에서 하라고 바르게 안내'},
   {v:'1.1',date:'2026-11-27',text:'버튼을 손가락으로 누르기 쉽게 크게(44px 이상), 판마다 번호(판 #)를 붙여 같은 판을 다시 볼 수 있게, 기록을 파일로 저장·불러오기'},
   {v:'1.0',date:'2026-11-27',text:'무승부에도 결과 창, 연습 문제는 한 번 누르면 두기, 설정만 보고 나와도 이어 두기 가능, 처음 화면에 결과 창이 뜨지 않게, 이긴 판 복기 문구, 버전·업데이트 기록, 중력 오목 이어 두기'},
 ];
@@ -2254,6 +2255,9 @@ const BACKUP_KIND='omok-backup';
 function backupData(){const data={}; try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i); if(k.startsWith('omok.')&&!k.startsWith('omok.bak.')) data[k]=localStorage.getItem(k);}}catch(e){} return data;}
 function backupSay(html,btns){const n=$('#backupNote'); n.hidden=false; n.innerHTML=html; if(btns) btns(n);}
 $('#btnExport').onclick=()=>{
+  // inside the Claude page (a frame) the browser blocks saving files, so say where it works instead of pretending
+  let framed=true; try{framed=window.self!==window.top;}catch(e){}
+  if(framed){backupSay('이 화면에서는 파일을 저장할 수 없어요. 휴대폰 주소(babodabin.github.io/omok)에서 해 보세요.');return;}
   const file=JSON.stringify({kind:BACKUP_KIND,app:APP_VERSION,saveVersion:SAVE_VERSION,date:new Date().toISOString(),data:backupData()});
   try{const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([file],{type:'application/json'})); a.download=`오목수련관-기록-${new Date().toISOString().slice(0,10)}.json`;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
