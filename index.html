@@ -107,6 +107,8 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4vw,40px);mar
 /* version and update log at the bottom of every screen */
 .appfoot{display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px 0 10px;font-size:12.5px;color:var(--muted)}
 .appfoot .linkbtn{font-size:12.5px;color:var(--muted)}
+.backup{justify-content:center}
+.backupnote{margin:0;max-width:460px;text-align:center;color:var(--ink);font-size:13.5px}
 .updlist{margin:0;padding:10px 14px 10px 30px;max-width:560px;background:var(--surface);border:1px solid var(--rule);border-radius:8px;display:flex;flex-direction:column;gap:6px;font-size:13px}
 /* game result overlay */
 .result{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.45)}
@@ -249,6 +251,12 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .record{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:13px}
 .record div{background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:6px 10px}
+/* every control is at least 44px to press with a finger */
+button,.chip,.btn,.seg button{min-height:44px}
+.btn,.chip{min-width:44px}
+.linkbtn{min-height:44px;display:inline-flex;align-items:center;padding:0 4px}
+.toggles label,.opgrid label{min-height:44px}
+input[type=checkbox]{width:22px;height:22px;flex:none}
 </style>
 
 <div class="wrap">
@@ -419,7 +427,10 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     </section>
   </section>
   <footer class="appfoot"><button class="linkbtn" id="btnUpdates" aria-expanded="false">버전 <span id="appVer"></span> · 업데이트 기록</button>
-    <ul class="updlist" id="updList" hidden></ul></footer>
+    <ul class="updlist" id="updList" hidden></ul>
+    <div class="btns backup"><button class="btn" id="btnExport">기록 파일로 저장</button><button class="btn" id="btnImport">기록 불러오기</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden></div>
+    <p class="backupnote" id="backupNote" hidden></p></footer>
 </div>
 <!-- the result of a finished game, shown big over everything; tap anywhere outside the buttons to look at the board -->
 <div class="result" id="resultBox" hidden role="dialog" aria-modal="true" aria-labelledby="resultTitle">
@@ -612,12 +623,18 @@ function findVCT(b,color,depth,budget){
 }
 
 /* ---------- AI ---------- */
+// seeded random numbers: each game gets a number (판 #), and the AI's choices in that game follow from it
+function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+  let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+  return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const newSeed=()=>Date.now()%1e9;
+let rand=rng(1), grand=rng(1);
 function chooseMove(b,color,level){
   const opp=3-color;
   const stones=b.reduce((n,v)=>n+(v?1:0),0);
   if(stones===0) return idx(7,7);
   if(stones===1){const s=b.findIndex(v=>v);const opts=[[0,-1],[1,-1],[-1,-1],[1,0],[-1,0]].map(([dx,dy])=>[X(s)+dx,Y(s)+dy]).filter(([x,y])=>inb(x,y));
-    const [x,y]=opts[Math.floor(Math.random()*opts.length)]; return idx(x,y);}
+    const [x,y]=opts[Math.floor(rand()*opts.length)]; return idx(x,y);}
   // a cell the opponent may not play is no threat from them
   const infos=cands(b,2).map(i=>{const me=infoAt(b,i,color),op=infoAt(b,i,opp);return {i,me,op,mv:value(me),ov:banned(b,i,opp,op)?0:value(op)};});
   let legal=infos.filter(t=>!banned(b,t.i,color,t.me)); if(!legal.length) legal=infos;
@@ -628,10 +645,10 @@ function chooseMove(b,color,level){
   if(level!=='easy'){const s=findVCF(b,color,level==='hard'?10:6,level==='hard'?2500:500); if(s) return s[0][0];}
   if(level==='hard'){const s=findVCT(b,color,5,500); if(s) return s[0][0];}
   const dw=level==='easy'?0.55:0.9;
-  const careless=level==='easy'&&Math.random()<0.4; // 입문: sometimes overlooks open threes
+  const careless=level==='easy'&&rand()<0.4; // 입문: sometimes overlooks open threes
   for(const t of legal){const dc=Math.abs(X(t.i)-7)+Math.abs(Y(t.i)-7);
     const ov=careless?Math.min(t.ov,3000):t.ov;
-    t.score=t.mv+ov*dw-dc*0.5; if(level==='easy') t.score*=0.55+Math.random()*0.9;}
+    t.score=t.mv+ov*dw-dc*0.5; if(level==='easy') t.score*=0.55+rand()*0.9;}
   legal.sort((a,b)=>b.score-a.score);
   if(level==='easy') return legal[0].i;
   const oppMax=Math.max(...infos.map(t=>t.ov));
@@ -650,8 +667,9 @@ function chooseMove(b,color,level){
 
 /* ---------- storage ---------- */
 // the one place the version is written; it names the offline cache and heads the update log
-const APP_VERSION='1.0';
+const APP_VERSION='1.1';
 const UPDATES=[
+  {v:'1.1',date:'2026-11-27',text:'버튼을 손가락으로 누르기 쉽게 크게(44px 이상), 판마다 번호(판 #)를 붙여 같은 판을 다시 볼 수 있게, 기록을 파일로 저장·불러오기'},
   {v:'1.0',date:'2026-11-27',text:'무승부에도 결과 창, 연습 문제는 한 번 누르면 두기, 설정만 보고 나와도 이어 두기 가능, 처음 화면에 결과 창이 뜨지 않게, 이긴 판 복기 문구, 버전·업데이트 기록, 중력 오목 이어 두기'},
 ];
 // saved data: each write keeps the previous value as a backup, so a damaged save falls back to the one before
@@ -881,7 +899,7 @@ function renderStatus(){
   } else if(G.thinking){tx.textContent='AI 생각 중';st.classList.add('think');}
   else tx.textContent=t===opt.human?`당신 차례 (${t===1?'흑':'백'})`:'AI 차례';
   const lvl={easy:'입문',normal:'중수',hard:'고수'}[opt.level];
-  $('#movecount').textContent=`${G.hist.length}수 · AI ${lvl}`;
+  $('#movecount').textContent=`${G.hist.length}수 · AI ${lvl} · 판 #${G.seed}`;
 }
 
 /* ---------- game ---------- */
@@ -899,7 +917,7 @@ function renderFeed(){
   const mn=$('#mobileNote'); if(mn) mn.innerHTML=G.feed[0].html;
 }
 function newGame(){
-  hideResult(); G.gen=(G.gen||0)+1; store.set('live',null);
+  hideResult(); G.gen=(G.gen||0)+1; store.set('live',null); G.seed=newSeed(); rand=rng(G.seed);
   G.b=new Array(N*N).fill(0);G.hist=[];G.over=null;G.winLine=null;G.thinking=false;G.marks={};G.pre=null;G.feed=[];G.fours=[];G.thr=[];G.moves=[];G.sel=null;G.snap=null;G.delta={};G.gone=new Set();G.made={};G.early=true;G.newKeys=new Set();G.line=null;G.prevLine=null;G.lineDevSaid=false;G.lineDoneSaid=false;
   renderFeed();
   if(opt.human===2) aiTurn(); else {prepHuman();}
@@ -908,14 +926,14 @@ function newGame(){
 // the unfinished game is kept so closing the page doesn't lose it
 function saveLive(){
   if(G.over||!G.hist.length){store.set('live',null);return;}
-  store.set('live',{moves:G.hist.map(h=>h.i),rule:opt.rule,level:opt.level,human:opt.human,ops:opt.ops,made:G.made});
+  store.set('live',{moves:G.hist.map(h=>h.i),rule:opt.rule,level:opt.level,human:opt.human,ops:opt.ops,made:G.made,seed:G.seed});
 }
 function restoreLive(L){
   if(!L||!Array.isArray(L.moves)||!L.moves.length||L.moves.some(i=>!(i>=0&&i<N*N))) return;
   if(['kr33','free','renju'].includes(L.rule)) opt.rule=L.rule;
   if(['easy','normal','hard'].includes(L.level)) opt.level=L.level;
   opt.human=L.human===2?2:1; if(Array.isArray(L.ops)) opt.ops=L.ops;
-  RULE=opt.rule; newGame(); G.gen++; G.thinking=false; syncControls(); showPlay();
+  RULE=opt.rule; newGame(); G.gen++; G.thinking=false; if(Number.isInteger(L.seed)){G.seed=L.seed; rand=rng(G.seed+L.moves.length);} syncControls(); showPlay();
   L.moves.forEach((i,p)=>{const c=p%2===0?1:2; if(G.over||G.b[i]) return;
     if(c===opt.human){const inf=infoAt(G.b,i,c); G.fours.push(inf.o4+inf.c4>0||!!inf.five); G.thr.push(inf.o4+inf.c4>0||inf.o3>0||!!inf.five);}
     place(i,c);});
@@ -1946,12 +1964,12 @@ function gNegamax(b,depth,alpha,beta,me,stat){
 function gChoose(b,me,level){
   const op=3-me,moves=GORDER.map(c=>gDrop(b,c)).filter(i=>i>=0);
   const win=moves.find(i=>gWinsAt(b,i,me)); if(win!=null) return win;
-  const block=moves.find(i=>gWinsAt(b,i,op)); if(block!=null&&!(level==='easy'&&Math.random()<0.25)) return block;
+  const block=moves.find(i=>gWinsAt(b,i,op)); if(block!=null&&!(level==='easy'&&grand()<0.25)) return block;
   // never hand the opponent the cell directly above, unless nothing else is left
   const givesUp=i=>{const up=i-GW; if(up<0) return false; b[i]=me; const bad=gWinsAt(b,up,op); b[i]=0; return bad;};
   const safe=moves.filter(i=>!givesUp(i));
   const pool=safe.length?safe:moves;
-  if(level==='easy'&&Math.random()<0.35) return pool[Math.floor(Math.random()*pool.length)];
+  if(level==='easy'&&grand()<0.35) return pool[Math.floor(grand()*pool.length)];
   // the node cap is only a safety net: hitting it would leave later moves searched shallower than earlier ones
   const depth=level==='hard'?5:level==='normal'?3:2, stat={n:0,max:600000};
   let best=pool[0],bv=-Infinity;
@@ -1980,11 +1998,11 @@ $('#resultBox').onclick=e=>{if(e.target===e.currentTarget) hideResult();};
 if(document.addEventListener) document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#resultBox').hidden) hideResult();});
 // the result line, said once when the game ends
 // the unfinished 중력 오목 game, kept as the columns played
-function gSaveLive(){store.set('gLive',GV.over||!GV.hist.length?null:{need:GK,human:GV.human,level:GV.level,cols:GV.hist.map(h=>gc(h.i))});}
+function gSaveLive(){store.set('gLive',GV.over||!GV.hist.length?null:{need:GK,human:GV.human,level:GV.level,cols:GV.hist.map(h=>gc(h.i)),seed:GV.seed});}
 function gRestore(L){
   if(!L||!Array.isArray(L.cols)||!L.cols.length) return false;
   GV.need=L.need===5?5:4; GV.human=L.human===2?2:1; if(['easy','normal','hard'].includes(L.level)) GV.level=L.level;
-  gClear();
+  gClear(); if(Number.isInteger(L.seed)){GV.seed=L.seed; grand=rng(GV.seed+L.cols.length);}
   for(let k=0;k<L.cols.length;k++){const c=L.cols[k],i=c>=0&&c<GW?gDrop(GV.b,c):-1, col=k%2===0?1:2;
     if(i<0){gNew(); return true;} GV.b[i]=col; GV.hist.push({i,c:col}); if(gLine(GV.b,i)){gNew(); return true;}}
   gSay('코치','지난번에 두던 판을 불러왔어요. 이어서 두세요.','tip');
@@ -2002,7 +2020,7 @@ function gEndSay(){
   // let the chip land and the line show before the card covers the board
   const gen=GV.gen; setTimeout(()=>{if(GV.gen===gen&&GV.over&&!$('#gravView').hidden) showResult(kind,why,[['새 대국',gNew,true],['무르기',gUndo]]);},reduceMotion?0:450);}
 function gSay(who,html,tone=''){GV.feed.unshift({who,html,tone,n:GV.hist.length});GV.feed=GV.feed.slice(0,30);}
-function gClear(){hideResult();GV.gen++;GV.fall=null;GV.aiHold=null;GV.byScore=null;GV.rest=null;GV.hover=-1;GK=GV.need;gSetSize();GV.b=new Array(GN).fill(0);GV.hist=[];GV.over=null;GV.win=null;GV.thinking=false;GV.feed=[];GV.hint=null;}
+function gClear(){hideResult();GV.gen++;GV.seed=newSeed();grand=rng(GV.seed);GV.fall=null;GV.aiHold=null;GV.byScore=null;GV.rest=null;GV.hover=-1;GK=GV.need;gSetSize();GV.b=new Array(GN).fill(0);GV.hist=[];GV.over=null;GV.win=null;GV.thinking=false;GV.feed=[];GV.hint=null;}
 function gNew(){gClear(); store.set('gLive',null);
   gSay('코치','칩을 원하는 열의 홈 위에 올려놓으면 판 뒤로 떨어져요. 홈 위 표시가 이길 열, 막을 열, 피할 열을 알려줘요.','tip');
   if(GV.human===2) gAI(); gRender();}
@@ -2120,7 +2138,7 @@ function gRender(){
   else if(GV.over){const won=GV.over===GV.human; tx.textContent=won?'승리':'패배'; st.classList.add(won?'win':'lose');}
   else if(GV.thinking){tx.textContent='AI 생각 중';st.classList.add('think');}
   else tx.textContent=turnMine?`당신 차례 (${GV.human===1?'흑':'백'})`:'AI 차례';
-  $('#gCount').textContent=`${GK}줄 게임 · ${GV.hist.length}수 · AI ${LEVEL_NAME[GV.level]}`;
+  $('#gCount').textContent=`${GK}줄 게임 · ${GV.hist.length}수 · AI ${LEVEL_NAME[GV.level]} · 판 #${GV.seed}`;
   const sb=$('#gScore'); sb.hidden=!sc;
   if(sc){const me=GV.human,ai=3-me,dot=c=>`<i class="gs-dot" style="background:${c===1?'#15171b':'#f3f2ec'}"></i>`;
     sb.innerHTML=`<span>${dot(me)}나 <b>3개 줄 ${sc[me].t3}</b> · 2개 줄 ${sc[me].t2}</span><span>${dot(ai)}AI <b>3개 줄 ${sc[ai].t3}</b> · 2개 줄 ${sc[ai].t2}</span>`;}
@@ -2231,6 +2249,26 @@ $('#mUndo').onclick=undo; $('#mHint').onclick=hint; $('#mNew').onclick=()=>{ente
 $('#appVer').textContent=APP_VERSION;
 $('#updList').innerHTML=UPDATES.map(u=>`<li><b>${u.v}</b> · ${u.date} — ${u.text}</li>`).join('');
 $('#btnUpdates').onclick=()=>{const l=$('#updList'); l.hidden=!l.hidden; $('#btnUpdates').setAttribute('aria-expanded',!l.hidden);};
+// backup: every saved record (전적, 복기, 도감, 설정, 두던 판) to one file, and back
+const BACKUP_KIND='omok-backup';
+function backupData(){const data={}; try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i); if(k.startsWith('omok.')&&!k.startsWith('omok.bak.')) data[k]=localStorage.getItem(k);}}catch(e){} return data;}
+function backupSay(html,btns){const n=$('#backupNote'); n.hidden=false; n.innerHTML=html; if(btns) btns(n);}
+$('#btnExport').onclick=()=>{
+  const file=JSON.stringify({kind:BACKUP_KIND,app:APP_VERSION,saveVersion:SAVE_VERSION,date:new Date().toISOString(),data:backupData()});
+  try{const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([file],{type:'application/json'})); a.download=`오목수련관-기록-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    backupSay(`기록을 파일로 저장했어요 (${Object.keys(JSON.parse(file).data).length}가지). 휴대폰을 바꾸거나 지워졌을 때 「기록 불러오기」로 되살릴 수 있어요.`);}
+  catch(e){backupSay('이 화면에서는 파일을 저장할 수 없어요. 휴대폰 주소(babodabin.github.io/omok)에서 해 보세요.');}};
+$('#btnImport').onclick=()=>$('#importFile').click();
+$('#importFile').onchange=e=>{const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return;
+  const rd=new FileReader(); rd.onload=()=>{let b; try{b=JSON.parse(rd.result);}catch(err){}
+    if(!b||b.kind!==BACKUP_KIND||!b.data||typeof b.data!=='object'||!Object.keys(b.data).every(k=>k.startsWith('omok.')&&typeof b.data[k]==='string')){backupSay('오목 수련관 기록 파일이 아니에요. 「기록 파일로 저장」으로 만든 파일을 골라 주세요.');return;}
+    backupSay(`${b.date?b.date.slice(0,10)+'에 ':''}저장한 기록이에요. 불러오면 지금 기록은 이 파일 내용으로 바뀌어요.
+      <span class="btns backup" style="margin-top:8px"><button class="btn primary" id="importYes">불러오기</button><button class="btn" id="importNo">취소</button></span>`,n=>{
+      $('#importNo').onclick=()=>{n.hidden=true;};
+      $('#importYes').onclick=()=>{try{for(const k of Object.keys(backupData())) localStorage.removeItem(k); for(const [k,v] of Object.entries(b.data)) localStorage.setItem(k,v);}catch(err){}
+        location.reload();};});};
+  rd.readAsText(f);};
 // offline copy (only on the phone site; elsewhere sw.js is missing and this quietly fails)
 try{if(navigator.serviceWorker) navigator.serviceWorker.register('sw.js?v='+APP_VERSION).catch(()=>{});}catch(e){}
 // leaving the app (home button, switching apps, a call) keeps both games where they were
