@@ -11,7 +11,6 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<script>if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));</script>
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -105,6 +104,10 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(28px,4vw,40px);mar
 /* 중력 오목 */
 .gravity{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,420px);gap:22px;align-items:start}
 @media (max-width:720px){.gravity{grid-template-columns:minmax(0,1fr)}}
+/* version and update log at the bottom of every screen */
+.appfoot{display:flex;flex-direction:column;align-items:center;gap:8px;padding:6px 0 10px;font-size:12.5px;color:var(--muted)}
+.appfoot .linkbtn{font-size:12.5px;color:var(--muted)}
+.updlist{margin:0;padding:10px 14px 10px 30px;max-width:560px;background:var(--surface);border:1px solid var(--rule);border-radius:8px;display:flex;flex-direction:column;gap:6px;font-size:13px}
 /* game result overlay */
 .result{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.45)}
 .result[hidden]{display:none}
@@ -415,6 +418,8 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       </div>
     </section>
   </section>
+  <footer class="appfoot"><button class="linkbtn" id="btnUpdates" aria-expanded="false">버전 <span id="appVer"></span> · 업데이트 기록</button>
+    <ul class="updlist" id="updList" hidden></ul></footer>
 </div>
 <!-- the result of a finished game, shown big over everything; tap anywhere outside the buttons to look at the board -->
 <div class="result" id="resultBox" hidden role="dialog" aria-modal="true" aria-labelledby="resultTitle">
@@ -644,8 +649,21 @@ function chooseMove(b,color,level){
 }
 
 /* ---------- storage ---------- */
-const store={get(k,d){try{const v=localStorage.getItem('omok.'+k);return v?JSON.parse(v):d;}catch(e){return d;}},
-  set(k,v){try{localStorage.setItem('omok.'+k,JSON.stringify(v));}catch(e){}}};
+// the one place the version is written; it names the offline cache and heads the update log
+const APP_VERSION='1.0';
+const UPDATES=[
+  {v:'1.0',date:'2026-11-27',text:'무승부에도 결과 창, 연습 문제는 한 번 누르면 두기, 설정만 보고 나와도 이어 두기 가능, 처음 화면에 결과 창이 뜨지 않게, 이긴 판 복기 문구, 버전·업데이트 기록, 중력 오목 이어 두기'},
+];
+// saved data: each write keeps the previous value as a backup, so a damaged save falls back to the one before
+const store={get(k,d){
+    for(const key of ['omok.'+k,'omok.bak.'+k]){try{const v=localStorage.getItem(key); if(v) return JSON.parse(v);}catch(e){}}
+    return d;},
+  set(k,v){try{const old=localStorage.getItem('omok.'+k); if(old!=null) localStorage.setItem('omok.bak.'+k,old); localStorage.setItem('omok.'+k,JSON.stringify(v));}catch(e){}}};
+// saved data format: 1 = before versions were kept, 2 = now
+const SAVE_VERSION=2;
+(function migrate(){const v=store.get('saveVersion',1);
+  if(v<2){try{['confirm','confirm2'].forEach(k=>localStorage.removeItem('omok.'+k));}catch(e){}} // tap-twice settings from before it became 「놓기 전에 미리 보기」
+  if(v!==SAVE_VERSION) store.set('saveVersion',SAVE_VERSION);})();
 let tally=store.get('tally',{}), done=store.get('lessons',{}), record=store.get('record',{easy:[0,0],normal:[0,0],hard:[0,0]});
 const bump=k=>{tally[k]=(tally[k]||0)+1;store.set('tally',tally);};
 
@@ -826,7 +844,7 @@ function render(){
     h+=`<circle cx="${x}" cy="${y}" r="19" fill="none" stroke="var(--seal)" stroke-width="2.5" stroke-dasharray="2 4"/><text x="${x}" y="${y-24}" text-anchor="middle" font-size="12" font-family="Gowun Dodum,sans-serif" fill="var(--seal)" font-weight="700">놓친 수</text>`;}
   if(hover>=0&&!b[hover]&&canPlayNow()&&!(selItem&&selItem.cells.includes(hover))){const c=isLesson?(LS.lesson.me||1):opt.human; const x=pos(X(hover)),y=pos(Y(hover));
     h+=`<circle cx="${x}" cy="${y}" r="17" fill="${c===1?'#1d1f24':'#f4f3ec'}" opacity=".38"/>`;}
-  if(pend>=0&&(b[pend]||!canPlayNow())) pend=-1;
+  if(pend>=0&&(isLesson||tab!=='game'||b[pend]||!canPlayNow())) pend=-1;
   if(pend>=0){const c=isLesson?(LS.lesson.me||1):opt.human, x=pos(X(pend)),y=pos(Y(pend));
     h+=`<circle cx="${x}" cy="${y}" r="17" fill="${c===1?'#1d1f24':'#f4f3ec'}" opacity=".7"/><circle cx="${x}" cy="${y}" r="22" fill="none" stroke="var(--accent)" stroke-width="3" stroke-dasharray="5 4"/>`;}
   svg.innerHTML=h;
@@ -931,9 +949,11 @@ function finish(){
   if(!G.over) return;
   store.set('live',null);
   saveGame(); renderReviewList();
-  if(G.over==='draw'){say('결과','판이 가득 찼습니다. 무승부.','');return;}
-  const won=G.over===opt.human; const r=record[opt.level]||[0,0]; r[won?0:1]++; record[opt.level]=r; store.set('record',record);
-  if(won){
+  const won=G.over===opt.human;
+  if(G.over==='draw') say('결과','판이 가득 찼습니다. 무승부.','');
+  else{const r=record[opt.level]||[0,0]; r[won?0:1]++; record[opt.level]=r; store.set('record',record);}
+  if(G.over==='draw'){}
+  else if(won){
     const hm=G.fours; const vcf=hm.length>=3&&hm.slice(-3).every(Boolean);
     const tm=G.thr; const vct=!vcf&&tm.length>=3&&tm.slice(-3).every(Boolean);
     if(vcf){bump('vcf');say('결과','<b>승리!</b> 마지막을 사로만 몰아붙였어요. <b>VCF 승리</b>로 도감에 기록했습니다.','good');}
@@ -946,7 +966,7 @@ function finish(){
   const acts=[['새 대국',()=>{enterSetup(); window.scrollTo(0,0);},true]];
   if(G.savedId) acts.push(['복기하기',()=>{const g=games.find(x=>x.id===G.savedId); if(g){showMain('codex'); openReview(g);}}]);
   acts.push(['무르기',undo]);
-  const gen=G.gen; setTimeout(()=>{if(G.gen===gen&&G.over) showResult(kind,kind==='draw'?'판이 가득 찼어요.':kind==='win'?'오목을 완성했어요.':'AI가 오목을 완성했어요.',acts);},350);
+  const gen=G.gen; setTimeout(()=>{if(G.gen===gen&&G.over&&!$('#mainView').hidden&&tab==='game') showResult(kind,kind==='draw'?'판이 가득 찼어요.':kind==='win'?'오목을 완성했어요.':'AI가 오목을 완성했어요.',acts);},350);
 }
 function prepHuman(){
   // analysis for coach + overlay before the human moves
@@ -1829,7 +1849,7 @@ function reviewHtml(){
   const g=RV.g,n=g.moves.length,m=RV.mistakes&&RV.mistakes.find(x=>x.ply===RV.step+1);
   const list=!RV.mistakes?`<p class="state">내 수를 하나씩 검사하는 중… ${Math.round(RV.progress*100)}%</p>`
     :RV.mistakes.length?`<ol class="mistakes">${RV.mistakes.map(x=>`<li><button data-p="${x.ply}" aria-current="${m&&m.ply===x.ply}">${x.ply}수 ${C(x.i)} · ${x.text}</button></li>`).join('')}</ol>`
-    :'<p class="state">눈에 띄는 큰 실수는 찾지 못했어요. AI가 더 깊은 수읽기로 이긴 판일 수 있어요.</p>';
+    :`<p class="state">${g.result==='win'?'눈에 띄는 큰 실수 없이 이겼어요. 잘 두었어요.':g.result==='draw'?'눈에 띄는 큰 실수는 찾지 못했어요.':'눈에 띄는 큰 실수는 찾지 못했어요. AI가 더 깊은 수읽기로 이긴 판일 수 있어요.'}</p>`;
   return `<span class="tag">대국 복기 · ${RULE_NAME[g.rule]} · AI ${LEVEL_NAME[g.level]} · 내 돌 ${g.human===1?'흑':'백'}</span>
     <h2>${RESULT_NAME[g.result]} · ${n}수</h2><p>${finishNote(g)}</p>
     <p class="label" style="margin:0">고칠 수 있었던 수 ${RV.mistakes?RV.mistakes.length+'개':''}</p>${list}
@@ -1847,7 +1867,7 @@ function bindReview(){
 }
 
 /* ---------- wiring ---------- */
-function switchTab(t){tab=t;
+function switchTab(t){tab=t; pend=-1;
   for(const k of ['game','learn','codex']){$('#tab-'+k).setAttribute('aria-selected',k===t);$('#pane-'+k).hidden=k!==t;}
   // 수 배우기 always shows an opening; 기술 도감 shows a drill only once one is opened there
   if(t==='learn'&&!(LS.lesson&&LS.lesson.type==='study')) loadOpening(OS);
@@ -1859,14 +1879,15 @@ function switchTab(t){tab=t;
 // home screen ↔ main view
 const inGame=v=>{const w=$('.wrap'); if(w&&w.classList&&w.classList.toggle) w.classList.toggle('ingame',v);};
 function showHome(){hideResult();inGame(false);$('#home').hidden=false;$('#mainView').hidden=true;$('#gravView').hidden=true;$('#btnHome').hidden=true;
-  $('#homeResume').hidden=!(G.hist.length&&!G.over&&!setupMode);}
-function showMain(t){inGame(true);$('#home').hidden=true;$('#gravView').hidden=true;$('#mainView').hidden=false;$('#btnHome').hidden=false;switchTab(t);}
+  $('#homeResume').hidden=!(G.hist.length&&!G.over);}
+function showMain(t){hideResult();inGame(true);$('#home').hidden=true;$('#gravView').hidden=true;$('#mainView').hidden=false;$('#btnHome').hidden=false;switchTab(t);}
 $('#btnHome').onclick=showHome;
 if(document.addEventListener) document.addEventListener('click',e=>{const t=e.target; if(!t||!t.dataset||!t.dataset.review) return;
   const g=games.find(x=>x.id===G.savedId); if(g){showMain('codex'); openReview(g);}});
 $('#home').querySelectorAll('.rulecard[data-rule]').forEach(bt=>bt.onclick=()=>{opt.rule=bt.dataset.rule;store.set('rule2',opt.rule);syncControls();
   showMain('game');enterSetup();});
-$('#homeResume').onclick=()=>showMain('game');
+// coming back from the setup screen: take the saved game as it was (the setup may have changed the rule or side meanwhile)
+$('#homeResume').onclick=()=>{const L=store.get('live',null); if(setupMode&&L) restoreLive(L); else if(setupMode) showPlay(); showMain('game');};
 $('#homeLearn').onclick=()=>showMain('learn');
 $('#homeCodex').onclick=()=>showMain('codex');
 
@@ -1958,6 +1979,17 @@ function hideResult(){$('#resultBox').hidden=true;}
 $('#resultBox').onclick=e=>{if(e.target===e.currentTarget) hideResult();};
 if(document.addEventListener) document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#resultBox').hidden) hideResult();});
 // the result line, said once when the game ends
+// the unfinished 중력 오목 game, kept as the columns played
+function gSaveLive(){store.set('gLive',GV.over||!GV.hist.length?null:{need:GK,human:GV.human,level:GV.level,cols:GV.hist.map(h=>gc(h.i))});}
+function gRestore(L){
+  if(!L||!Array.isArray(L.cols)||!L.cols.length) return false;
+  GV.need=L.need===5?5:4; GV.human=L.human===2?2:1; if(['easy','normal','hard'].includes(L.level)) GV.level=L.level;
+  gClear();
+  for(let k=0;k<L.cols.length;k++){const c=L.cols[k],i=c>=0&&c<GW?gDrop(GV.b,c):-1, col=k%2===0?1:2;
+    if(i<0){gNew(); return true;} GV.b[i]=col; GV.hist.push({i,c:col}); if(gLine(GV.b,i)){gNew(); return true;}}
+  gSay('코치','지난번에 두던 판을 불러왔어요. 이어서 두세요.','tip');
+  if((GV.hist.length%2===0?1:2)!==GV.human) gAI();
+  gRender(); return true;}
 function gEndSay(){
   if(GV.byScore){const s=GV.byScore,me=GV.human,ai=3-me,t=`3개 줄 나 <b>${s[me].t3}</b> : AI <b>${s[ai].t3}</b>`+(s[me].t3===s[ai].t3?`, 2개 줄 나 <b>${s[me].t2}</b> : AI <b>${s[ai].t2}</b>`:'');
     gSay('결과',GV.over==='draw'?`판이 가득 찼고 점수도 같아요. 무승부. (${t})`:GV.over===me?`<b>승리!</b> 아무도 네 개를 못 이었지만 점수로 이겼어요. (${t})`:`<b>패배.</b> 아무도 네 개를 못 이었고 점수에서 졌어요. (${t})`,GV.over==='draw'?'':GV.over===me?'good':'bad');}
@@ -1968,9 +2000,10 @@ function gEndSay(){
   const why=s?`판이 가득 찼어요. 3개 줄 나 ${s[me].t3} : AI ${s[ai].t3}`+(s[me].t3===s[ai].t3?`, 2개 줄 나 ${s[me].t2} : AI ${s[ai].t2}`:'')
     :kind==='draw'?'판이 가득 찼어요.':kind==='win'?`${GK===5?'다섯':'네'} 개를 이었어요.`:`AI가 ${GK===5?'다섯':'네'} 개를 이었어요.`;
   // let the chip land and the line show before the card covers the board
-  const gen=GV.gen; setTimeout(()=>{if(GV.gen===gen&&GV.over) showResult(kind,why,[['새 대국',gNew,true],['무르기',gUndo]]);},reduceMotion?0:450);}
+  const gen=GV.gen; setTimeout(()=>{if(GV.gen===gen&&GV.over&&!$('#gravView').hidden) showResult(kind,why,[['새 대국',gNew,true],['무르기',gUndo]]);},reduceMotion?0:450);}
 function gSay(who,html,tone=''){GV.feed.unshift({who,html,tone,n:GV.hist.length});GV.feed=GV.feed.slice(0,30);}
-function gNew(){hideResult();GV.gen++;GV.fall=null;GV.aiHold=null;GV.byScore=null;GV.rest=null;GV.hover=-1;GK=GV.need;gSetSize();GV.b=new Array(GN).fill(0);GV.hist=[];GV.over=null;GV.win=null;GV.thinking=false;GV.feed=[];GV.hint=null;
+function gClear(){hideResult();GV.gen++;GV.fall=null;GV.aiHold=null;GV.byScore=null;GV.rest=null;GV.hover=-1;GK=GV.need;gSetSize();GV.b=new Array(GN).fill(0);GV.hist=[];GV.over=null;GV.win=null;GV.thinking=false;GV.feed=[];GV.hint=null;}
+function gNew(){gClear(); store.set('gLive',null);
   gSay('코치','칩을 원하는 열의 홈 위에 올려놓으면 판 뒤로 떨어져요. 홈 위 표시가 이길 열, 막을 열, 피할 열을 알려줘요.','tip');
   if(GV.human===2) gAI(); gRender();}
 // a chip falls behind the frame under gravity and bounces a little; the move only counts once it has landed
@@ -1994,7 +2027,7 @@ function gPlace(i,c,done){GV.b[i]=c;GV.hist.push({i,c});GV.hint=null;
     if(w){GV.over=c;GV.win=w;}
     else if(GV.hist.length===GN){
       if(GK===4){const s=gScore(GV.b),d=gScoreCmp(s,1); GV.byScore=s; GV.over=d>0?1:d<0?2:'draw';} else GV.over='draw';}
-    if(GV.over) gEndSay(); done(); gRender();});}
+    if(GV.over) gEndSay(); done(); gSaveLive(); gRender();});}
 function gPlay(col){
   if(GV.over||GV.thinking||GV.fall||GV.aiHold||(GV.hist.length%2===0?1:2)!==GV.human) return;
   const i=gDrop(GV.b,col); if(i<0) return; GV.rest=col;
@@ -2023,7 +2056,7 @@ function gUndo(){if(GV.thinking||GV.fall||GV.aiHold||!GV.hist.length) return; hi
   do{const h=GV.hist.pop();GV.b[h.i]=0;}while(GV.hist.length&&(GV.hist.length%2===0?1:2)!==GV.human);
   GV.byScore=null;
   if(!GV.hist.length&&GV.human===2){GV.over=null;GV.win=null;gAI();return;}
-  GV.over=null;GV.win=null;GV.hint=null;gSay('코치','한 수 물렸어요.','tip');gRender();}
+  GV.over=null;GV.win=null;GV.hint=null;gSay('코치','한 수 물렸어요.','tip');gSaveLive();gRender();}
 function gHint(){if(GV.over||GV.thinking||GV.fall||GV.aiHold) return; GV.hint=gc(gChoose(GV.b.slice(),GV.human,'hard'));
   gSay('힌트',`${GL(GV.hint)}을 추천해요.`,'tip'); gRender();}
 const reduceMotion=(()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){return false;}})();
@@ -2124,7 +2157,7 @@ $('#gNeed').onclick=e=>{const v=e.target.dataset&&e.target.dataset.v; if(!v) ret
   GV.need=n; store.set('gNeed',n); gNew();};
 $('#gNew').onclick=gNew; $('#gUndo').onclick=gUndo; $('#gHint').onclick=gHint;
 $('#gNewM').onclick=gNew; $('#gUndoM').onclick=gUndo; $('#gHintM').onclick=gHint;
-function showGravity(){inGame(true);$('#home').hidden=true;$('#mainView').hidden=true;$('#gravView').hidden=false;$('#btnHome').hidden=false; if(!GV.hist.length) gNew(); else gRender();}
+function showGravity(){hideResult();inGame(true);$('#home').hidden=true;$('#mainView').hidden=true;$('#gravView').hidden=false;$('#btnHome').hidden=false; if(!GV.hist.length){if(!gRestore(store.get('gLive',null))) gNew();} else gRender();}
 $('#homeGravity').onclick=showGravity;
 function cellFromEvent(e){const r=svg.getBoundingClientRect();const sx=(e.clientX-r.left)*632/r.width,sy=(e.clientY-r.top)*632/r.height;
   const x=Math.round((sx-M)/S),y=Math.round((sy-M)/S);return inb(x,y)?idx(x,y):-1;}
@@ -2140,7 +2173,8 @@ svg.addEventListener('pointercancel',()=>{downAt=null;});
 // clicks that come without pointer events (keyboard, assistive tools) still work; the one that follows a handled tap is skipped
 svg.addEventListener('click',e=>{if(performance.now()-tapAt<700) return; boardTap(e);});
 function boardTap(e){const i=cellFromEvent(e);if(i<0)return;
-  if(opt.confirm&&lastPT!=='mouse'&&canPlayNow()&&!(lessonView()?LS.b:G.b)[i]&&pend!==i){pend=i;render();return;}
+  if(!lessonView()&&tab!=='game') return; // 기술 도감 with no drill open just shows the game board
+  if(opt.confirm&&!lessonView()&&lastPT!=='mouse'&&canPlayNow()&&!G.b[i]&&pend!==i){pend=i;render();return;}
   pend=-1;
   if(lessonView()) lessonMove(i); else if(tab==='game') humanMove(i); else {switchTab('game'); humanMove(i);}}
 svg.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;const i=cellFromEvent(e);if(i!==hover){hover=i;render();}});
@@ -2194,6 +2228,14 @@ $('#btnNew').onclick=enterSetup;
 $('#mPlace').onclick=()=>{const i=pend; if(i<0) return; pend=-1; humanMove(i);};
 $('#mUndo').onclick=undo; $('#mHint').onclick=hint; $('#mNew').onclick=()=>{enterSetup(); window.scrollTo(0,0);}; $('#btnUndo').onclick=undo; $('#btnHint').onclick=hint;
 
+$('#appVer').textContent=APP_VERSION;
+$('#updList').innerHTML=UPDATES.map(u=>`<li><b>${u.v}</b> · ${u.date} — ${u.text}</li>`).join('');
+$('#btnUpdates').onclick=()=>{const l=$('#updList'); l.hidden=!l.hidden; $('#btnUpdates').setAttribute('aria-expanded',!l.hidden);};
+// offline copy (only on the phone site; elsewhere sw.js is missing and this quietly fails)
+try{if(navigator.serviceWorker) navigator.serviceWorker.register('sw.js?v='+APP_VERSION).catch(()=>{});}catch(e){}
+// leaving the app (home button, switching apps, a call) keeps both games where they were
+const saveNow=()=>{saveLive(); gSaveLive();};
+if(document.addEventListener){document.addEventListener('visibilitychange',()=>{if(document.hidden) saveNow();}); window.addEventListener&&window.addEventListener('pagehide',saveNow);}
 syncControls(); renderChapters(); renderCodex(); renderReviewList();
 // a game is ready behind the home screen, which opens first
 const live0=store.get('live',null);
